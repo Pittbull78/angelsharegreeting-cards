@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AngelShare Greeting Cards</title>
+    <meta name="description" content="Create beautiful personalized greeting cards online. 3 free cards, then $0.50 per card or $4/month unlimited.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
@@ -11,13 +12,16 @@
 <body class="bg-gray-900 min-h-screen">
     <div id="app"></div>
     <script>
+        // PRODUCTION CONFIGURATION
         const BACKEND_URL = 'https://4242-iidd0gj4d9r945cr86ybp-fb45ac7b.manusvm.computer';
         const STRIPE_KEY = 'pk_live_51SCDSmIMVSrTlGD14e5uutdxIoD0TUovM8J42dZG1m1NTaU8OnhEtJjS8Q5aeqZ7GBGfZfb3dBKjetHXJvJTZ5NK006keGJJF0';
         const stripe = Stripe(STRIPE_KEY);
         
-        let freeCardsUsed = 0;
+        let freeCardsUsed = parseInt(localStorage.getItem('freeCardsUsed') || '0');
         let showPayment = false;
+        let currentPlan = '';
         let cardElement = null;
+        let isProcessing = false;
         
         const state = {
             occasion: 'birthday',
@@ -73,20 +77,34 @@
             const fontMap = { elegant: 'Dancing Script', modern: 'Roboto', classic: 'Georgia' };
             
             if (state.occasionText) {
-                ctx.font = `24px '${fontMap[state.font]}', cursive`;
+                ctx.font = `bold 28px '${fontMap[state.font]}', cursive`;
                 ctx.fillText(state.occasionText, canvas.width / 2, 80);
             }
             if (state.recipient) {
-                ctx.font = `16px '${fontMap[state.font]}', sans-serif`;
-                ctx.fillText(`Dear ${state.recipient},`, canvas.width / 2, 120);
+                ctx.font = `18px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(`Dear ${state.recipient},`, canvas.width / 2, 130);
             }
             if (state.message) {
-                ctx.font = `14px '${fontMap[state.font]}', sans-serif`;
-                ctx.fillText(state.message, canvas.width / 2, 150);
+                ctx.font = `16px '${fontMap[state.font]}', sans-serif`;
+                const words = state.message.split(' ');
+                let line = '';
+                let y = 170;
+                for (let word of words) {
+                    const testLine = line + word + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    if (metrics.width > 350 && line) {
+                        ctx.fillText(line, canvas.width / 2, y);
+                        line = word + ' ';
+                        y += 22;
+                    } else {
+                        line = testLine;
+                    }
+                }
+                ctx.fillText(line, canvas.width / 2, y);
             }
             if (state.sender) {
-                ctx.font = `14px '${fontMap[state.font]}', sans-serif`;
-                ctx.fillText(`- ${state.sender}`, canvas.width / 2, canvas.height - 20);
+                ctx.font = `16px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(`- ${state.sender}`, canvas.width / 2, canvas.height - 30);
             }
         }
         
@@ -102,45 +120,71 @@
             });
         }
         
-        async function handlePayment(plan) {
-            const amount = plan === 'single' ? '0.50' : '4.00';
+        function handleFreeDownload() {
+            freeCardsUsed++;
+            localStorage.setItem('freeCardsUsed', freeCardsUsed);
+            downloadCard();
+            render();
+        }
+        
+        async function handlePayment() {
+            if (isProcessing || !cardElement) return;
+            isProcessing = true;
+            render();
+            
+            const amount = currentPlan === 'single' ? '0.50' : '4.00';
             try {
                 const res = await fetch(`${BACKEND_URL}/create-payment-intent`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount, planType: plan })
+                    body: JSON.stringify({ amount, planType: currentPlan })
                 });
+                
+                if (!res.ok) throw new Error('Payment failed');
+                
                 const { clientSecret } = await res.json();
-                const { error } = await stripe.confirmCardPayment(clientSecret, {
+                const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
                     payment_method: { card: cardElement }
                 });
-                if (!error) {
-                    alert('Payment successful!');
+                
+                if (error) {
+                    alert('Payment failed: ' + error.message);
+                } else if (paymentIntent.status === 'succeeded') {
+                    alert('Payment successful! Downloading your card...');
                     downloadCard();
                     showPayment = false;
-                    render();
                 }
             } catch (err) {
-                alert('Payment failed: ' + err.message);
+                alert('Payment error: ' + err.message);
             }
+            isProcessing = false;
+            render();
         }
         
         function render() {
             const app = document.getElementById('app');
+            
             if (showPayment) {
                 app.innerHTML = `
                     <div class="min-h-screen flex items-center justify-center p-4">
                         <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full">
-                            <h2 class="text-2xl text-white mb-4">Complete Payment</h2>
+                            <h2 class="text-2xl text-white mb-2">Complete Payment</h2>
+                            <p class="text-gray-300 mb-4">${currentPlan === 'single' ? 'Single Card - $0.50' : 'Monthly Unlimited - $4.00/month'}</p>
                             <div id="card-element" class="bg-gray-700 p-4 rounded mb-4"></div>
-                            <button onclick="handlePayment('single')" class="w-full bg-pink-600 text-white py-2 rounded mb-2">Pay $0.50</button>
-                            <button onclick="showPayment=false; render()" class="w-full bg-gray-600 text-white py-2 rounded">Cancel</button>
+                            <button onclick="handlePayment()" ${isProcessing ? 'disabled' : ''} 
+                                class="w-full bg-pink-600 text-white py-3 rounded mb-2 font-bold hover:bg-pink-700 disabled:opacity-50">
+                                ${isProcessing ? 'Processing...' : `Pay $${currentPlan === 'single' ? '0.50' : '4.00'}`}
+                            </button>
+                            <button onclick="showPayment=false; render()" 
+                                class="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700">Cancel</button>
                         </div>
                     </div>
                 `;
                 setTimeout(() => {
                     const elements = stripe.elements();
-                    cardElement = elements.create('card', { style: { base: { fontSize: '16px', color: '#fff' }}});
+                    cardElement = elements.create('card', {
+                        style: { base: { fontSize: '16px', color: '#fff', '::placeholder': { color: '#aaa' }}}
+                    });
                     cardElement.mount('#card-element');
                 }, 100);
                 return;
@@ -148,7 +192,8 @@
             
             app.innerHTML = `
                 <div class="p-4 md:p-8">
-                    <h1 class="text-4xl text-white text-center mb-8" style="font-family: 'Dancing Script', cursive">AngelShare Greeting Cards</h1>
+                    <h1 class="text-4xl md:text-5xl text-white text-center mb-2" style="font-family: 'Dancing Script', cursive">AngelShare Greeting Cards</h1>
+                    <p class="text-gray-300 text-center mb-8">Create personalized greeting cards in minutes</p>
                     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div class="space-y-6">
                             <div class="bg-gray-800 p-6 rounded-lg">
@@ -156,7 +201,7 @@
                                 <div class="grid grid-cols-2 gap-3">
                                     ${occasions.map(o => `
                                         <button onclick="state.occasion='${o.id}'; state.occasionText='${o.text}'; drawCard()" 
-                                            class="py-2 px-4 rounded ${state.occasion === o.id ? 'bg-pink-600' : 'bg-gray-700'} text-white">
+                                            class="py-2 px-4 rounded font-semibold ${state.occasion === o.id ? 'bg-pink-600' : 'bg-gray-700'} text-white hover:bg-pink-500">
                                             ${o.label}
                                         </button>
                                     `).join('')}
@@ -167,7 +212,7 @@
                                 <div class="grid grid-cols-3 gap-2">
                                     ${designs.map(d => `
                                         <button onclick="state.design='${d}'; drawCard()" 
-                                            class="py-2 px-2 rounded text-sm ${state.design === d ? 'bg-pink-600' : 'bg-gray-700'} text-white capitalize">
+                                            class="py-2 px-2 rounded text-sm font-semibold ${state.design === d ? 'bg-pink-600' : 'bg-gray-700'} text-white capitalize hover:bg-pink-500">
                                             ${d}
                                         </button>
                                     `).join('')}
@@ -177,36 +222,56 @@
                                 <h3 class="text-white text-xl mb-4">Customize Text</h3>
                                 <input type="text" placeholder="Occasion Text" value="${state.occasionText}" 
                                     oninput="state.occasionText=this.value; drawCard()" 
-                                    class="w-full bg-gray-700 text-white p-2 rounded mb-3">
+                                    class="w-full bg-gray-700 text-white p-3 rounded mb-3 border border-gray-600 focus:border-pink-500 focus:outline-none">
                                 <input type="text" placeholder="Recipient Name" value="${state.recipient}" 
                                     oninput="state.recipient=this.value; drawCard()" 
-                                    class="w-full bg-gray-700 text-white p-2 rounded mb-3">
-                                <textarea placeholder="Message" oninput="state.message=this.value; drawCard()" 
-                                    class="w-full bg-gray-700 text-white p-2 rounded mb-3" rows="3">${state.message}</textarea>
-                                <input type="text" placeholder="From" value="${state.sender}" 
+                                    class="w-full bg-gray-700 text-white p-3 rounded mb-3 border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <textarea placeholder="Your message..." oninput="state.message=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-3 rounded mb-3 border border-gray-600 focus:border-pink-500 focus:outline-none" rows="3">${state.message}</textarea>
+                                <input type="text" placeholder="From (your name)" value="${state.sender}" 
                                     oninput="state.sender=this.value; drawCard()" 
-                                    class="w-full bg-gray-700 text-white p-2 rounded">
+                                    class="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-pink-500 focus:outline-none">
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Font & Color</h3>
+                                <div class="grid grid-cols-3 gap-2 mb-4">
+                                    ${fonts.map(f => `
+                                        <button onclick="state.font='${f}'; drawCard()" 
+                                            class="py-2 px-2 rounded text-sm font-semibold ${state.font === f ? 'bg-pink-600' : 'bg-gray-700'} text-white capitalize hover:bg-pink-500">
+                                            ${f}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                                <label class="text-gray-300 block mb-2">Text Color</label>
+                                <input type="color" value="${state.color}" onchange="state.color=this.value; drawCard()" 
+                                    class="w-full h-12 rounded cursor-pointer">
                             </div>
                         </div>
                         <div class="space-y-6">
                             <div class="bg-gray-800 p-6 rounded-lg">
                                 <h3 class="text-white text-xl mb-4">Live Preview</h3>
-                                <canvas id="canvas" class="w-full rounded border-2 border-gray-600"></canvas>
+                                <canvas id="canvas" class="w-full rounded border-2 border-gray-600 shadow-xl"></canvas>
                             </div>
                             <div class="bg-gray-800 p-6 rounded-lg">
                                 <h3 class="text-white text-xl mb-4">Download Your Card</h3>
                                 ${freeCardsUsed < 3 ? `
-                                    <div class="bg-green-600/20 border border-green-500 p-4 rounded mb-4 text-center">
-                                        <p class="text-white font-bold mb-2">🎉 ${3 - freeCardsUsed} free cards remaining!</p>
-                                        <button onclick="freeCardsUsed++; downloadCard(); render()" 
-                                            class="w-full bg-green-500 text-white py-2 rounded">Download FREE Card</button>
+                                    <div class="bg-green-600/20 border-2 border-green-500 p-4 rounded mb-4 text-center">
+                                        <p class="text-white font-bold text-lg mb-3">🎉 ${3 - freeCardsUsed} free card${3 - freeCardsUsed > 1 ? 's' : ''} remaining!</p>
+                                        <button onclick="handleFreeDownload()" 
+                                            class="w-full bg-green-500 text-white py-3 rounded font-bold text-lg hover:bg-green-600">
+                                            Download FREE Card
+                                        </button>
                                     </div>
-                                ` : `
-                                    <button onclick="showPayment=true; render()" 
-                                        class="w-full bg-pink-600 text-white py-2 rounded mb-2">Buy Single Card - $0.50</button>
-                                    <button onclick="showPayment=true; render()" 
-                                        class="w-full bg-purple-600 text-white py-2 rounded">Get Unlimited - $4.00/month</button>
-                                `}
+                                ` : ''}
+                                <button onclick="currentPlan='single'; showPayment=true; render()" 
+                                    class="w-full bg-pink-600 text-white py-3 rounded mb-3 font-bold hover:bg-pink-700">
+                                    Buy Single Card - $0.50
+                                </button>
+                                <button onclick="currentPlan='monthly'; showPayment=true; render()" 
+                                    class="w-full bg-purple-600 text-white py-3 rounded font-bold hover:bg-purple-700">
+                                    Get Unlimited - $4.00/month
+                                </button>
+                                ${freeCardsUsed < 3 ? '<p class="text-xs text-gray-400 text-center mt-3">Use your free cards first, or purchase now</p>' : ''}
                             </div>
                         </div>
                     </div>
