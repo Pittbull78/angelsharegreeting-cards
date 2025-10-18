@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AngelShare Greeting Cards</title>
     <meta name="description" content="Create beautiful personalized greeting cards online. 3 free cards, then $0.50 per card or $4/month unlimited.">
+    <meta property="og:title" content="AngelShare Greeting Cards">
+    <meta property="og:description" content="Create personalized greeting cards in minutes">
+    <meta property="og:type" content="website">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
@@ -49,13 +52,65 @@
         const designs = ['classic', 'floral', 'geometric', 'vintage', 'minimalist', 'festive'];
         const fonts = ['elegant', 'modern', 'classic'];
         
-        function drawCard() {
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    state.photo = e.target.result;
+                    drawCard();
+                    render();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        async function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+        
+        async function drawCard() {
             const canvas = document.getElementById('canvas');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
             canvas.width = 400;
             canvas.height = 300;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw photo as background if enabled
+            if (state.photo && state.photoBg) {
+                try {
+                    const photoImg = await loadImage(state.photo);
+                    ctx.drawImage(
+                        photoImg,
+                        (state.crop.x / 100) * photoImg.width,
+                        (state.crop.y / 100) * photoImg.height,
+                        (state.crop.width / 100) * photoImg.width,
+                        (state.crop.height / 100) * photoImg.height,
+                        0, 0, canvas.width, canvas.height
+                    );
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                } catch (err) {
+                    console.error('Error loading photo:', err);
+                }
+            } else if (state.photo && !state.photoBg) {
+                try {
+                    const photoImg = await loadImage(state.photo);
+                    const photoSize = 80;
+                    const photoX = canvas.width - photoSize - 20;
+                    const photoY = 20;
+                    ctx.drawImage(photoImg, photoX, photoY, photoSize, photoSize);
+                } catch (err) {
+                    console.error('Error loading photo:', err);
+                }
+            }
             
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
             const colorMap = {
@@ -246,6 +301,26 @@
                                 <input type="color" value="${state.color}" onchange="state.color=this.value; drawCard()" 
                                     class="w-full h-12 rounded cursor-pointer">
                             </div>
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Add Photo (Optional)</h3>
+                                <input type="file" id="photoInput" accept="image/*" onchange="handlePhotoUpload(event)" class="hidden">
+                                <button onclick="document.getElementById('photoInput').click()" 
+                                    class="w-full bg-pink-600 text-white py-3 rounded mb-3 font-bold hover:bg-pink-700">
+                                    ${state.photo ? '📷 Change Photo' : '📷 Upload Photo'}
+                                </button>
+                                ${state.photo ? `
+                                    <div class="space-y-2">
+                                        <label class="flex items-center text-white">
+                                            <input type="checkbox" ${state.photoBg ? 'checked' : ''} onchange="state.photoBg=this.checked; drawCard()" class="mr-2">
+                                            Use as background
+                                        </label>
+                                        <button onclick="state.photo=null; state.photoBg=false; drawCard(); render()" 
+                                            class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">
+                                            Remove Photo
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
                         <div class="space-y-6">
                             <div class="bg-gray-800 p-6 rounded-lg">
@@ -275,6 +350,9 @@
                             </div>
                         </div>
                     </div>
+                    <footer class="text-center text-gray-500 text-sm mt-12 pb-4">
+                        <p>Share this app: <a href="https://pittbull78.github.io/angelshare/" class="text-pink-500 hover:underline">https://pittbull78.github.io/angelshare/</a></p>
+                    </footer>
                 </div>
             `;
             setTimeout(drawCard, 100);
