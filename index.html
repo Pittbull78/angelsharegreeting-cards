@@ -1,107 +1,222 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#ff69b4" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="AngelShare" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    
-    <!-- PWA Icons -->
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Create beautiful personalized greeting cards in minutes. Upload photos, customize text, and download instantly for just $0.99." />
-    <meta name="keywords" content="greeting cards, personalized cards, birthday cards, thank you cards, custom cards, photo cards" />
-    <meta name="author" content="AngelShare" />
-    
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="AngelShare Greeting Cards - Personalized Cards in Minutes" />
-    <meta property="og:description" content="Create beautiful personalized greeting cards with photos in just 2 minutes for $0.99. Perfect for birthdays, thank you notes, and special occasions." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://angelshare-njdvnv.manus.space/" />
-    <meta property="og:image" content="/icon-512.png" />
-    
-    <!-- Twitter Card Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AngelShare Greeting Cards" />
-    <meta name="twitter:description" content="Create personalized greeting cards in minutes for $0.99" />
-    <meta name="twitter:image" content="/icon-512.png" />
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
-    
-    <title>AngelShare Greeting Cards - Personalized Cards in Minutes</title>
-    <script type="module" crossorigin src="/assets/index-D7kYq1lz.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CfwGoYZZ.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    
-    <!-- PWA Service Worker Registration -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AngelShare Greeting Cards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body class="bg-gray-900 min-h-screen">
+    <div id="app"></div>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('AngelShare PWA: Service Worker registered successfully:', registration.scope);
-            })
-            .catch((error) => {
-              console.log('AngelShare PWA: Service Worker registration failed:', error);
-            });
-        });
-      }
-
-      // PWA Install Prompt
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
+        const BACKEND_URL = 'https://4242-iidd0gj4d9r945cr86ybp-fb45ac7b.manusvm.computer';
+        const STRIPE_KEY = 'pk_live_51SCDSmIMVSrTlGD14e5uutdxIoD0TUovM8J42dZG1m1NTaU8OnhEtJjS8Q5aeqZ7GBGfZfb3dBKjetHXJvJTZ5NK006keGJJF0';
+        const stripe = Stripe(STRIPE_KEY);
         
-        // Show custom install button or banner
-        const installBanner = document.createElement('div');
-        installBanner.innerHTML = `
-          <div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #ff69b4, #9d4edd); color: white; padding: 12px; text-align: center; z-index: 1000; font-family: 'Roboto', sans-serif;">
-            <span style="margin-right: 15px;">📱 Add AngelShare to your home screen for easy access!</span>
-            <button id="installBtn" style="background: white; color: #ff69b4; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 10px;">Install App</button>
-            <button id="dismissBtn" style="background: transparent; color: white; border: 1px solid white; padding: 8px 16px; border-radius: 20px; cursor: pointer;">Maybe Later</button>
-          </div>
-        `;
-        document.body.appendChild(installBanner);
+        let freeCardsUsed = 0;
+        let showPayment = false;
+        let cardElement = null;
         
-        document.getElementById('installBtn').addEventListener('click', () => {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the install prompt');
+        const state = {
+            occasion: 'birthday',
+            design: 'classic',
+            font: 'elegant',
+            color: '#ff69b4',
+            recipient: '',
+            sender: '',
+            message: '',
+            occasionText: 'Happy Birthday!',
+            photo: null,
+            photoBg: false,
+            crop: { x: 0, y: 0, width: 100, height: 100 }
+        };
+        
+        const occasions = [
+            { id: 'birthday', label: 'Birthday', text: 'Happy Birthday!' },
+            { id: 'anniversary', label: 'Anniversary', text: 'Happy Anniversary!' },
+            { id: 'holiday', label: 'Holiday', text: 'Happy Holidays!' },
+            { id: 'thank you', label: 'Thank You', text: 'Thank You!' },
+            { id: 'congratulations', label: 'Congratulations', text: 'Congratulations!' },
+            { id: 'sympathy', label: 'Sympathy', text: 'With Sympathy' }
+        ];
+        
+        const designs = ['classic', 'floral', 'geometric', 'vintage', 'minimalist', 'festive'];
+        const fonts = ['elegant', 'modern', 'classic'];
+        
+        function drawCard() {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = 400;
+            canvas.height = 300;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            const colorMap = {
+                classic: ['#667eea', '#764ba2'],
+                floral: ['#f093fb', '#f5576c'],
+                geometric: ['#4facfe', '#00f2fe'],
+                vintage: ['#ffecd2', '#fcb69f'],
+                minimalist: ['#a8edea', '#fed6e3'],
+                festive: ['#ff9a9e', '#fecfef']
+            };
+            const colors = colorMap[state.design];
+            gradient.addColorStop(0, colors[0]);
+            gradient.addColorStop(1, colors[1]);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = state.color;
+            ctx.textAlign = 'center';
+            const fontMap = { elegant: 'Dancing Script', modern: 'Roboto', classic: 'Georgia' };
+            
+            if (state.occasionText) {
+                ctx.font = `24px '${fontMap[state.font]}', cursive`;
+                ctx.fillText(state.occasionText, canvas.width / 2, 80);
             }
-            deferredPrompt = null;
-            installBanner.remove();
-          });
-        });
+            if (state.recipient) {
+                ctx.font = `16px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(`Dear ${state.recipient},`, canvas.width / 2, 120);
+            }
+            if (state.message) {
+                ctx.font = `14px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(state.message, canvas.width / 2, 150);
+            }
+            if (state.sender) {
+                ctx.font = `14px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(`- ${state.sender}`, canvas.width / 2, canvas.height - 20);
+            }
+        }
         
-        document.getElementById('dismissBtn').addEventListener('click', () => {
-          installBanner.remove();
-        });
-      });
-
-      // Track PWA usage
-      window.addEventListener('appinstalled', (evt) => {
-        console.log('AngelShare PWA was installed');
-        // Track this event for analytics
-      });
+        function downloadCard() {
+            const canvas = document.getElementById('canvas');
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `angelshare-card-${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        async function handlePayment(plan) {
+            const amount = plan === 'single' ? '0.50' : '4.00';
+            try {
+                const res = await fetch(`${BACKEND_URL}/create-payment-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, planType: plan })
+                });
+                const { clientSecret } = await res.json();
+                const { error } = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: { card: cardElement }
+                });
+                if (!error) {
+                    alert('Payment successful!');
+                    downloadCard();
+                    showPayment = false;
+                    render();
+                }
+            } catch (err) {
+                alert('Payment failed: ' + err.message);
+            }
+        }
+        
+        function render() {
+            const app = document.getElementById('app');
+            if (showPayment) {
+                app.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full">
+                            <h2 class="text-2xl text-white mb-4">Complete Payment</h2>
+                            <div id="card-element" class="bg-gray-700 p-4 rounded mb-4"></div>
+                            <button onclick="handlePayment('single')" class="w-full bg-pink-600 text-white py-2 rounded mb-2">Pay $0.50</button>
+                            <button onclick="showPayment=false; render()" class="w-full bg-gray-600 text-white py-2 rounded">Cancel</button>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const elements = stripe.elements();
+                    cardElement = elements.create('card', { style: { base: { fontSize: '16px', color: '#fff' }}});
+                    cardElement.mount('#card-element');
+                }, 100);
+                return;
+            }
+            
+            app.innerHTML = `
+                <div class="p-4 md:p-8">
+                    <h1 class="text-4xl text-white text-center mb-8" style="font-family: 'Dancing Script', cursive">AngelShare Greeting Cards</h1>
+                    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="space-y-6">
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Choose Occasion</h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    ${occasions.map(o => `
+                                        <button onclick="state.occasion='${o.id}'; state.occasionText='${o.text}'; drawCard()" 
+                                            class="py-2 px-4 rounded ${state.occasion === o.id ? 'bg-pink-600' : 'bg-gray-700'} text-white">
+                                            ${o.label}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Design Style</h3>
+                                <div class="grid grid-cols-3 gap-2">
+                                    ${designs.map(d => `
+                                        <button onclick="state.design='${d}'; drawCard()" 
+                                            class="py-2 px-2 rounded text-sm ${state.design === d ? 'bg-pink-600' : 'bg-gray-700'} text-white capitalize">
+                                            ${d}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Customize Text</h3>
+                                <input type="text" placeholder="Occasion Text" value="${state.occasionText}" 
+                                    oninput="state.occasionText=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-2 rounded mb-3">
+                                <input type="text" placeholder="Recipient Name" value="${state.recipient}" 
+                                    oninput="state.recipient=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-2 rounded mb-3">
+                                <textarea placeholder="Message" oninput="state.message=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-2 rounded mb-3" rows="3">${state.message}</textarea>
+                                <input type="text" placeholder="From" value="${state.sender}" 
+                                    oninput="state.sender=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-2 rounded">
+                            </div>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Live Preview</h3>
+                                <canvas id="canvas" class="w-full rounded border-2 border-gray-600"></canvas>
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg">
+                                <h3 class="text-white text-xl mb-4">Download Your Card</h3>
+                                ${freeCardsUsed < 3 ? `
+                                    <div class="bg-green-600/20 border border-green-500 p-4 rounded mb-4 text-center">
+                                        <p class="text-white font-bold mb-2">🎉 ${3 - freeCardsUsed} free cards remaining!</p>
+                                        <button onclick="freeCardsUsed++; downloadCard(); render()" 
+                                            class="w-full bg-green-500 text-white py-2 rounded">Download FREE Card</button>
+                                    </div>
+                                ` : `
+                                    <button onclick="showPayment=true; render()" 
+                                        class="w-full bg-pink-600 text-white py-2 rounded mb-2">Buy Single Card - $0.50</button>
+                                    <button onclick="showPayment=true; render()" 
+                                        class="w-full bg-purple-600 text-white py-2 rounded">Get Unlimited - $4.00/month</button>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            setTimeout(drawCard, 100);
+        }
+        
+        render();
     </script>
-  </body>
+</body>
 </html>
+
