@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AngelShare Greeting Cards</title>
+    <meta name="description" content="Create beautiful personalized greeting cards online. 3 free cards, then $0.50 per card or $4/month unlimited.">
+    <meta property="og:title" content="AngelShare Greeting Cards">
+    <meta property="og:description" content="Create personalized greeting cards in minutes">
+    <meta property="og:type" content="website">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body class="bg-gray-900 min-h-screen">
+    <div id="app"></div>
+    <script>
+        // PRODUCTION CONFIGURATION
+        const BACKEND_URL = 'https://angelshare-backend-m13xmvvh4-pr-pittmans-projects.vercel.app';
+        // --- --- --- --- --- --- --- --- --- --- ---
+
+        const STRIPE_KEY = 'pk_live_51SCDSmIMVSrTlGD14e5uutdxIoD0TUovM8J42dZG1m1NTaU8OnhEtJjS8Q5aeqZ7GBGfZfb3dBKjetHXJvJTZ5NK006keGJJF0';
+        const stripe = Stripe(STRIPE_KEY);
+        
+        let freeCardsUsed = parseInt(localStorage.getItem('freeCardsUsed') || '0');
+        let showPayment = false;
+        let currentPlan = '';
+        let cardElement = null;
+        let isProcessing = false;
+        
+        const state = {
+            occasion: 'birthday',
+            design: 'classic',
+            font: 'elegant',
+            color: '#ff69b4',
+            recipient: '',
+            sender: '',
+            message: '',
+            occasionText: 'Happy Birthday!',
+            photo: null,
+            photoBg: false,
+            // Photo positioning controls
+            zoom: 100, // as a percentage
+            panX: 50,  // as a percentage (0-100, 50 is center)
+            panY: 50   // as a percentage (0-100, 50 is center)
+        };
+        
+        const occasions = [
+            { id: 'birthday', label: 'Birthday', text: 'Happy Birthday!' },
+            { id: 'anniversary', label: 'Anniversary', text: 'Happy Anniversary!' },
+            { id: 'holiday', label: 'Holiday', text: 'Happy Holidays!' },
+            { id: 'thank you', label: 'Thank You', text: 'Thank You!' },
+            { id: 'congratulations', label: 'Congratulations', text: 'Congratulations!' },
+            { id: 'sympathy', label: 'Sympathy', text: 'With Sympathy' }
+        ];
+        
+        const designs = ['classic', 'floral', 'geometric', 'vintage', 'minimalist', 'festive'];
+        const fonts = ['elegant', 'modern', 'classic'];
+        
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    state.photo = e.target.result;
+                    // Reset zoom/pan on new photo upload
+                    state.zoom = 100;
+                    state.panX = 50;
+                    state.panY = 50;
+                    render(); // Only call render
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        async function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+        
+        async function drawCard() {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = 400;
+            canvas.height = 300;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // --- Background Logic ---
+            
+            // If photo is the background, draw it with zoom/pan
+            if (state.photo && state.photoBg) {
+                try {
+                    const photoImg = await loadImage(state.photo);
+                    
+                    // Calculate zoom and pan
+                    const zoomFactor = state.zoom / 100;
+                    const imgAspect = photoImg.width / photoImg.height;
+                    const canvasAspect = canvas.width / canvas.height;
+
+                    let sWidth, sHeight, sx, sy;
+
+                    // "Cover" logic: Fit image to canvas, maintaining aspect ratio
+                    if (imgAspect > canvasAspect) {
+                        sHeight = photoImg.height;
+                        sWidth = photoImg.height * canvasAspect;
+                    } else {
+                        sWidth = photoImg.width;
+                        sHeight = photoImg.width / canvasAspect;
+                    }
+
+                    // Apply zoom
+                    sWidth /= zoomFactor;
+                    sHeight /= zoomFactor;
+
+                    // Center the crop
+                    sx = (photoImg.width - sWidth) / 2;
+                    sy = (photoImg.height - sHeight) / 2;
+
+                    // Apply panning
+                    // PanX moves from -50 to +50 (relative to center)
+                    const panXOffset = (state.panX - 50) / 100;
+                    const panYOffset = (state.panY - 50) / 100;
+                    sx += panXOffset * (photoImg.width - sWidth);
+                    sy += panYOffset * (photoImg.height - sHeight);
+                    
+                    // Clamp values to prevent drawing outside the image
+                    sx = Math.max(0, Math.min(sx, photoImg.width - sWidth));
+                    sy = Math.max(0, Math.min(sy, photoImg.height - sHeight));
+                    
+                    ctx.drawImage(
+                        photoImg,
+                        sx, sy, sWidth, sHeight, // Source rect (from image)
+                        0, 0, canvas.width, canvas.height // Dest rect (on canvas)
+                    );
+                    
+                    // Add overlay so text is readable
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                } catch (err) {
+                    console.error('Error loading photo:', err);
+                }
+            } else {
+                // Otherwise, draw the gradient background
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                const colorMap = {
+                    classic: ['#667eea', '#764ba2'],
+                    floral: ['#f093fb', '#f5576c'],
+                    geometric: ['#4facfe', '#00f2fe'],
+                    vintage: ['#ffecd2', '#fcb69f'],
+                    minimalist: ['#a8edea', '#fed6e3'],
+                    festive: ['#ff9a9e', '#fecfef']
+                };
+                const colors = colorMap[state.design];
+                gradient.addColorStop(0, colors[0]);
+                gradient.addColorStop(1, colors[1]);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // And if there's a photo (but not as bg), draw it in the corner
+                if (state.photo && !state.photoBg) {
+                     try {
+                        const photoImg = await loadImage(state.photo);
+                        const photoSize = 80;
+                        const photoX = canvas.width - photoSize - 20;
+                        const photoY = 20;
+                        ctx.drawImage(photoImg, photoX, photoY, photoSize, photoSize);
+                    } catch (err) {
+                        console.error('Error loading photo:', err);
+                    }
+                }
+            }
+            
+            // --- Text Drawing (Always runs) ---
+            ctx.fillStyle = state.color;
+            ctx.textAlign = 'center';
+            const fontMap = { elegant: 'Dancing Script', modern: 'Roboto', classic: 'Georgia' };
+            
+            if (state.occasionText) {
+                ctx.font = `bold 28px '${fontMap[state.font]}', cursive`;
+                ctx.fillText(state.occasionText, canvas.width / 2, 80);
+            }
+            if (state.recipient) {
+                ctx.font = `18px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(`Dear ${state.recipient},`, canvas.width / 2, 130);
+            }
+            if (state.message) {
+                ctx.font = `16px '${fontMap[state.font]}', sans-serif`;
+                const words = state.message.split(' ');
+                let line = '';
+                let y = 170;
+                for (let word of words) {
+                    const testLine = line + word + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    if (metrics.width > 350 && line) {
+                        ctx.fillText(line, canvas.width / 2, y);
+                        line = word + ' ';
+                        y += 22;
+                    } else {
+                        line = testLine;
+                    }
+                }
+                ctx.fillText(line, canvas.width / 2, y);
+            }
+            if (state.sender) {
+                ctx.font = `16px '${fontMap[state.font]}', sans-serif`;
+                ctx.fillText(`- ${state.sender}`, canvas.width / 2, canvas.height - 30);
+            }
+        }
+        
+        function downloadCard() {
+            const canvas = document.getElementById('canvas');
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `angelshare-card-${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        function handleFreeDownload() {
+            freeCardsUsed++;
+            localStorage.setItem('freeCardsUsed', freeCardsUsed);
+            downloadCard();
+            render();
+        }
+        
+        async function handlePayment() {
+            if (isProcessing || !cardElement) return;
+            isProcessing = true;
+            render();
+            
+            const amount = currentPlan === 'single' ? '0.50' : '4.00';
+            try {
+                // This now points to your Vercel backend
+                const res = await fetch(`${BACKEND_URL}/api/create-payment-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, planType: currentPlan })
+                });
+                
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Payment failed to initialize.');
+                }
+                
+                const { clientSecret } = await res.json();
+                
+                if (!clientSecret) {
+                     throw new Error('Failed to retrieve payment secret.');
+                }
+
+                const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: { card: cardElement }
+                });
+                
+                if (error) {
+                    alert('Payment failed: ' + error.message);
+                } else if (paymentIntent.status === 'succeeded') {
+                    alert('Payment successful! Downloading your card...');
+                    downloadCard();
+                    showPayment = false;
+                }
+            } catch (err) {
+                console.error('Payment Error:', err);
+                alert('Payment error: ' + err.message);
+            }
+            isProcessing = false;
+            render();
+        }
+
+        // Helper function for slider controls
+        function PhotoControls() {
+            if (!state.photo || !state.photoBg) return '';
+
+            return `
+                <div class="bg-gray-700 p-4 rounded-lg mt-4">
+                    <h4 class="text-white text-lg mb-3">Adjust Background Photo</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-gray-300 text-sm mb-1">Zoom: ${state.zoom}%</label>
+                            <input type="range" min="100" max="300" value="${state.zoom}" 
+                                oninput="state.zoom = this.value; drawCard()" 
+                                class="w-full h-2 bg-gray-500 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 text-sm mb-1">Pan Horizontally: ${state.panX}</label>
+                            <input type="range" min="0" max="100" value="${state.panX}" 
+                                oninput="state.panX = this.value; drawCard()" 
+                                class="w-full h-2 bg-gray-500 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 text-sm mb-1">Pan Vertically: ${state.panY}</label>
+                            <input type="range" min="0" max="100" value="${state.panY}" 
+                                oninput="state.panY = this.value; drawCard()" 
+                                class="w-full h-2 bg-gray-500 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function render() {
+            const app = document.getElementById('app');
+            
+            if (showPayment) {
+                app.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="bg-gray-800 p-8 rounded-lg max-w-md w-full shadow-2xl">
+                            <h2 class="text-2xl text-white mb-2">Complete Payment</h2>
+                            <p class="text-gray-300 mb-4">${currentPlan === 'single' ? 'Single Card - $0.50' : 'Monthly Unlimited - $4.00/month'}</p>
+                            <div id="card-element" class="bg-gray-700 p-4 rounded mb-4 border border-gray-600"></div>
+                            <div id="card-errors" role="alert" class="text-red-400 text-sm mb-3"></div>
+                            <button onclick="handlePayment()" ${isProcessing ? 'disabled' : ''} 
+                                class="w-full bg-pink-600 text-white py-3 rounded mb-2 font-bold hover:bg-pink-700 disabled:opacity-50 transition-all duration-200">
+                                ${isProcessing ? 'Processing...' : `Pay $${currentPlan === 'single' ? '0.50' : '4.00'}`}
+                            </button>
+                            <button onclick="showPayment=false; render()" 
+                                class="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition-all duration-200">Cancel</button>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => {
+                    const elements = stripe.elements();
+                    cardElement = elements.create('card', {
+                        style: { 
+                            base: { 
+                                fontSize: '16px', 
+                                color: '#ffffff', 
+                                '::placeholder': { color: '#a0aec0' }
+                            }
+                        }
+                    });
+                    cardElement.mount('#card-element');
+                    
+                    // Show validation errors
+                    const displayError = document.getElementById('card-errors');
+                    cardElement.on('change', (event) => {
+                        if (event.error) {
+                            displayError.textContent = event.error.message;
+                        } else {
+                            displayError.textContent = '';
+                        }
+                    });
+                }, 100);
+                return;
+            }
+            
+            app.innerHTML = `
+                <div class="p-4 md:p-8">
+                    <h1 class="text-4xl md:text-5xl text-white text-center mb-2" style="font-family: 'Dancing Script', cursive">AngelShare Greeting Cards</h1>
+                    <p class="text-gray-300 text-center mb-8">Create personalized greeting cards in minutes</p>
+                    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="space-y-6">
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Choose Occasion</h3>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    ${occasions.map(o => `
+                                        <button onclick="state.occasion='${o.id}'; state.occasionText='${o.text}'; drawCard()" 
+                                            class="py-2 px-4 rounded font-semibold ${state.occasion === o.id ? 'bg-pink-600' : 'bg-gray-700'} text-white hover:bg-pink-500 transition-all duration-200">
+                                            ${o.label}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Design Style</h3>
+                                <div class="grid grid-cols-3 gap-2">
+                                    ${designs.map(d => `
+                                        <button onclick="state.design='${d}'; drawCard()" 
+                                            class="py-2 px-2 rounded text-sm font-semibold ${state.design === d ? 'bg-pink-600' : 'bg-gray-700'} text-white capitalize hover:bg-pink-500 transition-all duration-200">
+                                            ${d}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Customize Text</h3>
+                                <input type="text" placeholder="Occasion Text" value="${state.occasionText}" 
+                                    oninput="state.occasionText=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-3 rounded mb-3 border border-gray-600 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500">
+                                <input type="text" placeholder="Recipient Name" value="${state.recipient}" 
+                                    oninput="state.recipient=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-3 rounded mb-3 border border-gray-600 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500">
+                                <textarea placeholder="Your message..." oninput="state.message=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-3 rounded mb-3 border border-gray-600 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500" rows="3">${state.message}</textarea>
+                                <input type="text" placeholder="From (your name)" value="${state.sender}" 
+                                    oninput="state.sender=this.value; drawCard()" 
+                                    class="w-full bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500">
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Font & Color</h3>
+                                <div class="grid grid-cols-3 gap-2 mb-4">
+                                    ${fonts.map(f => `
+                                        <button onclick="state.font='${f}'; drawCard()" 
+                                            class="py-2 px-2 rounded text-sm font-semibold ${state.font === f ? 'bg-pink-600' : 'bg-gray-700'} text-white capitalize hover:bg-pink-500 transition-all duration-200">
+                                            ${f}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                                <label class="text-gray-300 block mb-2">Text Color</label>
+                                <input type="color" value="${state.color}" onchange="state.color=this.value; drawCard()" 
+                                    class="w-full h-12 rounded cursor-pointer border-gray-600">
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Add Photo (Optional)</h3>
+                                <input type="file" id="photoInput" accept="image/*" onchange="handlePhotoUpload(event)" class="hidden">
+                                <button onclick="document.getElementById('photoInput').click()" 
+                                    class="w-full bg-pink-600 text-white py-3 rounded mb-3 font-bold hover:bg-pink-700 transition-all duration-200">
+                                    ${state.photo ? '📷 Change Photo' : '📷 Upload Photo'}
+                                </button>
+                                ${state.photo ? `
+                                    <div class="space-y-2">
+                                        <label class="flex items-center text-white cursor-pointer">
+                                            <!-- ### FIX 1: Removed drawCard() call ### -->
+                                            <input type="checkbox" ${state.photoBg ? 'checked' : ''} onchange="state.photoBg=this.checked; render()" class="h-5 w-5 mr-2 text-pink-600 rounded focus:ring-pink-500">
+                                            Use as background
+                                        </label>
+                                        <!-- ### FIX 2: Removed drawCard() call ### -->
+                                        <button onclick="state.photo=null; state.photoBg=false; render()" 
+                                            class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition-all duration-200">
+                                            Remove Photo
+                                        </button>
+                                    </div>
+                                    ${PhotoControls()}
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Live Preview</h3>
+                                <canvas id="canvas" class="w-full rounded border-2 border-gray-600 shadow-xl" style="aspect-ratio: 4 / 3;"></canvas>
+                            </div>
+                            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                                <h3 class="text-white text-xl mb-4">Download Your Card</h3>
+                                ${freeCardsUsed < 3 ? `
+                                    <div class="bg-green-600/20 border-2 border-green-500 p-4 rounded mb-4 text-center">
+                                        <p class="text-white font-bold text-lg mb-3">🎉 ${3 - freeCardsUsed} free card${3 - freeCardsUsed > 1 ? 's' : ''} remaining!</p>
+                                        <button onclick="handleFreeDownload()" 
+                                            class="w-full bg-green-500 text-white py-3 rounded font-bold text-lg hover:bg-green-600 transition-all duration-200">
+                                            Download FREE Card
+                                        </button>
+                                    </div>
+                                ` : ''}
+                                <button onclick="currentPlan='single'; showPayment=true; render()" 
+                                    class="w-full bg-pink-600 text-white py-3 rounded mb-3 font-bold hover:bg-pink-700 transition-all duration-200">
+                                    Buy Single Card - $0.50
+                                </button>
+                                <button onclick="currentPlan='monthly'; showPayment=true; render()" 
+                                    class="w-full bg-purple-600 text-white py-3 rounded font-bold hover:bg-purple-700 transition-all duration-200">
+                                    Get Unlimited - $4.00/month
+                                </button>
+                                ${freeCardsUsed < 3 ? '<p class="text-xs text-gray-400 text-center mt-3">Use your free cards first, or purchase now</p>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="text-center text-gray-500 text-sm mt-12 pb-4">
+                        <p>Share this app: <a href="https://pittbull78.github.io/angelshare/" class="text-pink-500 hover:underline">https://pittbull78.github.io/angelshare/</a></Fp>
+                    </footer>
+                </div>
+            `;
+            setTimeout(drawCard, 100);
+        }
+        
+        render();
+    </script>
+</body>
+</html>
+
