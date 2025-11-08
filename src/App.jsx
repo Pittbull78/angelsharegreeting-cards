@@ -184,7 +184,7 @@ export default function App() {
   const fetchPaymentIntent = (amount) => {
      // Show a loading spinner or state here
      setPage('loading'); // Add a loading state
-
+    console.log('Using backend URL:', BACKEND_URL);
     fetch(`${BACKEND_URL}/api/create-payment-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -252,6 +252,7 @@ export default function App() {
 
   // 5. After finishing card editing
   const handleFinishEditing = () => {
+    console.log('Card ref:', cardRef.current);
     if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
       const newCount = activePass.count - 1;
       const now = new Date();
