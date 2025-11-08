@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { toPng } from 'html-to-image';
+import * as htmlToImage from 'html-to-image';
 
-export default function FinalCardPage({ cardUrl, onStartOver, userId }) {
+export default function FinalCardPage({ cardDetails, giftDetails, onStartOver, userId }) {
   const [copied, setCopied] = useState(false);
   const [referralLink, setReferralLink] = useState('');
   const cardRef = useRef(null);
@@ -64,7 +64,7 @@ export default function FinalCardPage({ cardUrl, onStartOver, userId }) {
       return;
     }
 
-    toPng(cardRef.current, { cacheBust: true, })
+    htmlToImage.toPng(cardRef.current, { cacheBust: true, })
       .then((dataUrl) => {
         const link = document.createElement('a');
         link.download = 'angelshare-card.png';
@@ -77,6 +77,30 @@ export default function FinalCardPage({ cardUrl, onStartOver, userId }) {
       });
   };
 
+  const occasionStyles = { fontFamily: cardDetails.occasionFont, color: cardDetails.occasionColor, fontWeight: cardDetails.occasionFontWeight, fontSize: `${cardDetails.occasionFontSize}px` };
+  const messageStyles = { fontFamily: cardDetails.messageFont, color: cardDetails.messageColor, fontWeight: cardDetails.messageFontWeight, fontSize: `${cardDetails.messageFontSize}px` };
+  const senderStyles = { ...messageStyles, fontSize: `${Math.max(12, cardDetails.messageFontSize * 0.8)}px` };
+
+  const generateQrCodeUrl = (details) => {
+    if (!details.username || !details.amount) return null;
+
+    let link;
+    if (details.platform === 'cashapp') {
+      // Remove leading '$' if present
+      const cleanUsername = details.username.replace(/^\$/, '');
+      link = `https://cash.app/$${cleanUsername}/${details.amount}`;
+    } else { // venmo
+      // Remove leading '@' if present
+      const cleanUsername = details.username.replace(/^@/, '');
+      link = `https://venmo.com/paycharge?txn=pay&recipients=${cleanUsername}&amount=${details.amount}&note=For%20${details.recipient.replace(' ', '%20')}`;
+    }
+
+    // Use a public QR code generator API
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}`;
+  };
+
+  const qrCodeUrl = generateQrCodeUrl(giftDetails);
+
   return (
     <div className="text-center space-y-4 animate-fadeIn">
       <h2 className="text-2xl font-bold text-green-400 mb-4">Your Card is Ready!</h2>
@@ -84,16 +108,22 @@ export default function FinalCardPage({ cardUrl, onStartOver, userId }) {
       <p className="text-gray-300">Download the card image and send it to your recipient. They will scan the QR code to claim their gift.</p>
 
       {/* This is the final card that will be downloaded */}
-      <div ref={cardRef} className="bg-gradient-to-br from-purple-600 to-pink-600 p-6 rounded-lg shadow-xl inline-block max-w-sm w-full"> {/* Constrain width */}
-        {cardUrl.includes('qrserver') ? (
-          <>
-            <h3 className="text-xl font-bold mb-2 text-white">You've received a monetary greeting!</h3>
-            <img src={cardUrl} alt="Gift QR Code" className="w-40 h-40 mx-auto rounded-lg border-4 border-white shadow-lg bg-white" />
-            <p className="text-sm mt-4 text-gray-200 font-bold">Scan this code with your phone's camera to claim your gift.</p>
-          </>
-        ) : (
-          <img src={cardUrl} alt="Final Card Preview" className="w-full h-auto object-cover rounded-lg border-4 border-white" />
-        )}
+      <div ref={cardRef} className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
+        {cardDetails.photo && <img src={cardDetails.photo} alt="Preview" className="absolute top-0 left-0 w-full h-full object-cover" />}
+        <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4">
+          <div className="cursor-pointer">
+            <p className="font-bold drop-shadow-md" style={occasionStyles}>{cardDetails.greetingText}</p>
+          </div>
+          <div className="cursor-pointer mt-4">
+            <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
+            <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
+          </div>
+          {qrCodeUrl && (
+            <div className="mt-4">
+              <img src={qrCodeUrl} alt="Gift QR Code" className="w-24 h-24 mx-auto rounded-lg border-2 border-white shadow-lg bg-white" />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-gray-700 p-4 rounded-lg mt-4">

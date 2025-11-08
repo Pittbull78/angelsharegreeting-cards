@@ -252,51 +252,41 @@ export default function App() {
 
   // 5. After finishing card editing
   const handleFinishEditing = () => {
-    if (cardRef.current) {
-      htmlToImage.toPng(cardRef.current)
-        .then(function (dataUrl) {
-          setFinalCardUrl(dataUrl);
-          if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
-            const newCount = activePass.count - 1;
-            const now = new Date();
-            const newPurchase = {
-              id: now.getTime(),
-              type: activePass.type,
-              date: now.toLocaleDateString(),
-              amount: 0,
-            };
-            const newHistory = [...purchaseHistory, newPurchase];
-            setPurchaseHistory(newHistory);
-            localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+    if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
+      const newCount = activePass.count - 1;
+      const now = new Date();
+      const newPurchase = {
+        id: now.getTime(),
+        type: activePass.type,
+        date: now.toLocaleDateString(),
+        amount: 0,
+      };
+      const newHistory = [...purchaseHistory, newPurchase];
+      setPurchaseHistory(newHistory);
+      localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
 
-            if (newCount === 0) {
-              setActivePass(null);
-              setIsNewUser(false);
-            } else {
-              setActivePass({ ...activePass, count: newCount });
-            }
-          } else if (purchaseType === 'referral_credit') {
-            const newCredits = referralCredits - 1;
-            setReferralCredits(newCredits);
-            localStorage.setItem('angelshareReferralCredits', newCredits);
-            const now = new Date();
-            const newPurchase = {
-              id: now.getTime(),
-              type: 'Referral Credit Used',
-              date: now.toLocaleDateString(),
-              amount: 0,
-            };
-            const newHistory = [...purchaseHistory, newPurchase];
-            setPurchaseHistory(newHistory);
-            localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
-          }
-          setPage('final');
-        })
-        .catch(function (error) {
-          console.error('oops, something went wrong!', error);
-          setError('oops, something went wrong! Could not create card image.');
-        });
+      if (newCount === 0) {
+        setActivePass(null);
+        setIsNewUser(false);
+      } else {
+        setActivePass({ ...activePass, count: newCount });
+      }
+    } else if (purchaseType === 'referral_credit') {
+      const newCredits = referralCredits - 1;
+      setReferralCredits(newCredits);
+      localStorage.setItem('angelshareReferralCredits', newCredits);
+      const now = new Date();
+      const newPurchase = {
+        id: now.getTime(),
+        type: 'Referral Credit Used',
+        date: now.toLocaleDateString(),
+        amount: 0,
+      };
+      const newHistory = [...purchaseHistory, newPurchase];
+      setPurchaseHistory(newHistory);
+      localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
     }
+    setPage('final');
   };
 
   // 6. Reset the app flow
@@ -384,7 +374,7 @@ export default function App() {
         return <CardEditor cardDetails={cardDetails} setCardDetails={setCardDetails} onNext={handleFinishEditing} onBack={() => setPage(editorBackTarget)} cardRef={cardRef} />;
       }
       case 'final':
-        return <FinalCardPage cardUrl={finalCardUrl} onStartOver={handleStartOver} userId={userId} />;
+        return <FinalCardPage cardDetails={cardDetails} giftDetails={giftDetails} onStartOver={handleStartOver} userId={userId} />;
       case 'account':
         return <AccountPage history={purchaseHistory} pass={activePass} onBack={() => setPage('home')} shareCount={shareCount} referralCredits={referralCredits} checkReferralRewards={handleCheckReferralRewards} />;
       default:
