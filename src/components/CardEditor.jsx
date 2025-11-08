@@ -83,7 +83,7 @@ const TextEditorToolbar = ({ element, details, onStyleChange, onColorChange, onC
 };
 
 // --- MAIN COMPONENT ---
-export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack }) {
+export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack, cardRef }) {
   const [selectedElement, setSelectedElement] = useState(null);
 
   useEffect(() => {
@@ -127,7 +127,7 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
 
   return (
     <div className="space-y-4 animate-fadeIn">
-      <div className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
+      <div ref={cardRef} className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
         {cardDetails.photo && <img src={cardDetails.photo} alt="Preview" className="absolute top-0 left-0 w-full h-full object-cover" />}
         <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4">
           <div onClick={() => setSelectedElement('occasion')} className="cursor-pointer">

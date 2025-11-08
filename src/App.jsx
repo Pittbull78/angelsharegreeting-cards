@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import * as htmlToImage from 'html-to-image';
 // Use the local packages installed via npm
 
 
@@ -72,6 +73,7 @@ export default function App() {
   const [clientSecret, setClientSecret] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [error, setError] = useState(null);
+  const cardRef = useRef();
 
   // --- On App Load: Load history from localStorage ---
   useEffect(() => {
@@ -250,46 +252,51 @@ export default function App() {
 
   // 5. After finishing card editing
   const handleFinishEditing = () => {
-    // ... (card generation logic)
+    if (cardRef.current) {
+      htmlToImage.toPng(cardRef.current)
+        .then(function (dataUrl) {
+          setFinalCardUrl(dataUrl);
+          if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
+            const newCount = activePass.count - 1;
+            const now = new Date();
+            const newPurchase = {
+              id: now.getTime(),
+              type: activePass.type,
+              date: now.toLocaleDateString(),
+              amount: 0,
+            };
+            const newHistory = [...purchaseHistory, newPurchase];
+            setPurchaseHistory(newHistory);
+            localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
 
-    if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
-      const newCount = activePass.count - 1;
-      const now = new Date();
-      const newPurchase = {
-        id: now.getTime(),
-        type: activePass.type,
-        date: now.toLocaleDateString(),
-        amount: 0,
-      };
-      const newHistory = [...purchaseHistory, newPurchase];
-      setPurchaseHistory(newHistory);
-      localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
-
-      if (newCount === 0) {
-        setActivePass(null);
-        setIsNewUser(false);
-      } else {
-        setActivePass({ ...activePass, count: newCount });
-      }
-    } else if (purchaseType === 'referral_credit') {
-      const newCredits = referralCredits - 1;
-      setReferralCredits(newCredits);
-      localStorage.setItem('angelshareReferralCredits', newCredits);
-      const now = new Date();
-      const newPurchase = {
-        id: now.getTime(),
-        type: 'Referral Credit Used',
-        date: now.toLocaleDateString(),
-        amount: 0,
-      };
-      const newHistory = [...purchaseHistory, newPurchase];
-      setPurchaseHistory(newHistory);
-      localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+            if (newCount === 0) {
+              setActivePass(null);
+              setIsNewUser(false);
+            } else {
+              setActivePass({ ...activePass, count: newCount });
+            }
+          } else if (purchaseType === 'referral_credit') {
+            const newCredits = referralCredits - 1;
+            setReferralCredits(newCredits);
+            localStorage.setItem('angelshareReferralCredits', newCredits);
+            const now = new Date();
+            const newPurchase = {
+              id: now.getTime(),
+              type: 'Referral Credit Used',
+              date: now.toLocaleDateString(),
+              amount: 0,
+            };
+            const newHistory = [...purchaseHistory, newPurchase];
+            setPurchaseHistory(newHistory);
+            localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+          }
+          setPage('final');
+        })
+        .catch(function (error) {
+          console.error('oops, something went wrong!', error);
+          setError('oops, something went wrong! Could not create card image.');
+        });
     }
-
-    // We'll just show the generated QR code for this demo
-    setFinalCardUrl(qrCodeUrl || `https://placehold.co/400x300/667eea/white?text=Your+Beautiful+Card!%0A(No+Gift+Added)`);
-    setPage('final');
   };
 
   // 6. Reset the app flow
@@ -374,7 +381,7 @@ export default function App() {
       case 'editor': {
         // Determine where 'Back' should go based on the flow
         const editorBackTarget = includesGift ? 'gifting' : (purchaseType === 'pass_active' ? 'home' : 'payment_options');
-        return <CardEditor cardDetails={cardDetails} setCardDetails={setCardDetails} onNext={handleFinishEditing} onBack={() => setPage(editorBackTarget)} />;
+        return <CardEditor cardDetails={cardDetails} setCardDetails={setCardDetails} onNext={handleFinishEditing} onBack={() => setPage(editorBackTarget)} cardRef={cardRef} />;
       }
       case 'final':
         return <FinalCardPage cardUrl={finalCardUrl} onStartOver={handleStartOver} userId={userId} />;
