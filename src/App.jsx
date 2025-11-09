@@ -46,12 +46,16 @@ export default function App() {
     occasionFontWeight: 700,
     occasionFontSize: 48,
     occasionColor: '#FFFFFF',
+    occasionX: 0,
+    occasionY: 0,
 
     // Message Styles
     messageFont: '\'Inter\', sans-serif',
     messageFontWeight: 400,
     messageFontSize: 20,
     messageColor: '#FFFFFF',
+    messageX: 0,
+    messageY: 0,
 
     // Color Linking
     areColorsLinked: true,

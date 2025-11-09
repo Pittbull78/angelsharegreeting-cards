@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { SketchPicker } from 'react-color';
+import Draggable from 'react-draggable';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 // --- DATA ---
 const holidayTemplates = {
@@ -65,7 +68,7 @@ const TextEditorToolbar = ({ element, details, onStyleChange, onColorChange, onC
   const color = details[`${prefix}Color`];
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-2 rounded-t-lg shadow-lg animate-fadeInUp">
+    <div className="bg-gray-800 p-2 rounded-t-lg shadow-lg animate-fadeInUp">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-sm font-bold px-2">Editing {element === 'occasion' ? 'Greeting' : 'Message'} Text</h3>
         <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
@@ -85,6 +88,9 @@ const TextEditorToolbar = ({ element, details, onStyleChange, onColorChange, onC
 // --- MAIN COMPONENT ---
 export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack, cardRef }) {
   const [selectedElement, setSelectedElement] = useState(null);
+  const [crop, setCrop] = useState();
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const imgRef = useRef(null);
 
   useEffect(() => {
     const template = holidayTemplates[cardDetails.occasion];
@@ -127,20 +133,83 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
 
   return (
     <div className="space-y-4 animate-fadeIn">
-      <div ref={cardRef} className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
-        {cardDetails.photo && <img src={cardDetails.photo} alt="Preview" className="absolute top-0 left-0 w-full h-full object-cover" />}
-        <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4">
-          <div onClick={() => setSelectedElement('occasion')} className="cursor-pointer">
-            <p className="font-bold drop-shadow-md" style={occasionStyles}>{cardDetails.greetingText}</p>
-          </div>
-          <div onClick={() => setSelectedElement('message')} className="cursor-pointer mt-4">
-            <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
-            <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
+      <div>
+        <div ref={cardRef} className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
+                  {cardDetails.photo && (
+                    <>
+                      <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}>
+                        <img
+                          ref={imgRef}
+                          src={cardDetails.photo}
+                          alt="Preview"
+                          className="absolute top-0 left-0 w-full h-full object-cover"
+                          onLoad={() => {
+                            // You might want to set a default crop here
+                          }}
+                        />
+                      </ReactCrop>
+                      <button
+                        onClick={() => {
+                          if (completedCrop?.width && completedCrop?.height && imgRef.current) {
+                            const canvas = document.createElement('canvas');
+                            const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+                            const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+                            canvas.width = completedCrop.width;
+                            canvas.height = completedCrop.height;
+                            const ctx = canvas.getContext('2d');
+                            const pixelRatio = window.devicePixelRatio;
+                            canvas.width = completedCrop.width * pixelRatio;
+                            canvas.height = completedCrop.height * pixelRatio;
+                            ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+                            ctx.imageSmoothingQuality = 'high';
+          
+                            ctx.drawImage(
+                              imgRef.current,
+                              completedCrop.x * scaleX,
+                              completedCrop.y * scaleY,
+                              completedCrop.width * scaleX,
+                              completedCrop.height * scaleY,
+                              0,
+                              0,
+                              completedCrop.width,
+                              completedCrop.height,
+                            );
+          
+                            const base64Image = canvas.toDataURL('image/jpeg');
+                            setCardDetails(prev => ({ ...prev, photo: base64Image }));
+                          }
+                        }}
+                        className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+                      >
+                        Crop Image
+                      </button>
+                    </>
+                  )}
+                  <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4">            <Draggable
+              position={{x: cardDetails.occasionX, y: cardDetails.occasionY}}
+              onStop={(e, data) => {
+                setCardDetails(prev => ({ ...prev, occasionX: data.x, occasionY: data.y }));
+              }}
+            >
+              <div onClick={() => setSelectedElement('occasion')} className="cursor-pointer">
+                <p className="font-bold drop-shadow-md" style={occasionStyles}>{cardDetails.greetingText}</p>
+              </div>
+            </Draggable>
+            <Draggable
+              position={{x: cardDetails.messageX, y: cardDetails.messageY}}
+              onStop={(e, data) => {
+                setCardDetails(prev => ({ ...prev, messageX: data.x, messageY: data.y }));
+              }}
+            >
+              <div onClick={() => setSelectedElement('message')} className="cursor-pointer mt-4">
+                <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
+                <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
+              </div>
+            </Draggable>
           </div>
         </div>
+        {selectedElement && <TextEditorToolbar element={selectedElement} details={cardDetails} onStyleChange={handleStyleChange} onColorChange={handleColorChange} onClose={() => setSelectedElement(null)} />}
       </div>
-
-      {selectedElement && <TextEditorToolbar element={selectedElement} details={cardDetails} onStyleChange={handleStyleChange} onColorChange={handleColorChange} onClose={() => setSelectedElement(null)} />}
 
       <div className="space-y-4">
         <div>
@@ -178,7 +247,7 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
               <div key={bg} onClick={() => setCardDetails(prev => ({ ...prev, background: bg, photo: null }))} style={{ background: bg }} className="w-12 h-12 rounded border-2 border-transparent hover:border-pink-500 cursor-pointer flex-shrink-0"></div>
             ))}
             <label htmlFor="photo-upload" className="w-12 h-12 rounded border-2 border-gray-600 hover:border-pink-500 cursor-pointer flex-shrink-0 flex items-center justify-center text-gray-400 text-2xl">+</label>
-            <input type="file" id="photo-upload" accept="image/*" onChange={handlePhoto} className="hidden" />
+            <input type="file" id="photo-upload" accept="image/*" onChange={handlePhoto} className="hidden" capture="environment" />
           </div>
         </div>
       </div>

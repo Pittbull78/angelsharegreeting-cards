@@ -6,6 +6,17 @@ export default function GiftingPage({ giftDetails, setGiftDetails, onNext, onBac
   const [username, setUsername] = useState(giftDetails.username);
   const [platform, setPlatform] = useState(giftDetails.platform);
   const [recipient, setRecipient] = useState(giftDetails.recipient);
+  const [isUsernameValid, setIsUsernameValid] = useState(false);
+
+  const validateUsername = (value, selectedPlatform) => {
+    if (selectedPlatform === 'cashapp') {
+      // Cash App usernames are 1-20 characters, letters and numbers
+      return /^[a-zA-Z0-9]{1,20}$/.test(value);
+    } else { // venmo
+      // Venmo usernames are 5-30 characters, letters, numbers, and hyphens
+      return /^[a-zA-Z0-9-]{5,30}$/.test(value);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -83,11 +94,20 @@ export default function GiftingPage({ giftDetails, setGiftDetails, onNext, onBac
             id="username"
             value={username}
             // Automatically remove the prefix character if typed
-            onChange={(e) => setUsername(e.target.value.replace(/[@$]/g, ''))}
+            onChange={(e) => {
+              const value = e.target.value.replace(/[@$]/g, '');
+              setUsername(value);
+              setIsUsernameValid(validateUsername(value, platform));
+            }}
             className="w-full bg-transparent text-white p-3 pl-0 focus:outline-none"
             placeholder={platform === 'cashapp' ? 'YourCashtag' : 'Your-Username'}
             required
           />
+          {username && (
+            <span className="p-2">
+              {isUsernameValid ? '✅' : '❌'}
+            </span>
+          )}
         </div>
       </div>
 
