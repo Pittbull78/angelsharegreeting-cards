@@ -28,33 +28,31 @@ const ColorPicker = ({ label, value, onChange }) => {
     popover: { position: 'absolute', zIndex: '2', bottom: '100%', left: '0' },
     cover: { position: 'fixed', top: '0px', right: '0px', bottom: '0px', left: '0px' },
   };
-  return (
-    <div className="relative">
-      <label className="block text-gray-300 text-xs font-bold mb-1">{label}</label>
-      <div style={styles.swatch} onClick={() => setDisplay(!display)}><div style={styles.color} /></div>
-      {display ? <div style={styles.popover}><div style={styles.cover} onClick={() => setDisplay(false)}/><SketchPicker color={value} onChange={onChange} /></div> : null}
-    </div>
+  return React.createElement('div', { className: 'relative' },
+    React.createElement('label', { className: 'block text-gray-300 text-xs font-bold mb-1' }, label),
+    React.createElement('div', { style: styles.swatch, onClick: () => setDisplay(!display) }, React.createElement('div', { style: styles.color })),
+    display ? React.createElement('div', { style: styles.popover }, React.createElement('div', { style: styles.cover, onClick: () => setDisplay(false) }), React.createElement(SketchPicker, { color: value, onChange: onChange })) : null
   );
 };
 
 const Slider = ({ label, name, min, max, value, onChange }) => (
-  <div className="flex-1">
-    <label className="block text-gray-300 text-xs font-bold mb-1" htmlFor={name}>{label}</label>
-    <input type="range" name={name} id={name} min={min} max={max} value={value} onChange={onChange} className="w-full" />
-  </div>
+  React.createElement('div', { className: 'flex-1' },
+    React.createElement('label', { className: 'block text-gray-300 text-xs font-bold mb-1', htmlFor: name }, label),
+    React.createElement('input', { type: 'range', name: name, id: name, min: min, max: max, value: value, onChange: onChange, className: 'w-full' })
+  )
 );
 
 const FontSelector = ({ value, onChange }) => (
-  <div className="flex-1">
-    <label className="block text-gray-300 text-xs font-bold mb-1" htmlFor="font">Font</label>
-    <select name="font" id="font" value={value} onChange={onChange} className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600 text-sm">
-      <option value="'Dancing Script', cursive">Dancing Script</option>
-      <option value="'Lobster', cursive">Lobster</option>
-      <option value="'Pacifico', cursive">Pacifico</option>
-      <option value="'Caveat', cursive">Caveat</option>
-      <option value="'Inter', sans-serif">Inter</option>
-    </select>
-  </div>
+  React.createElement('div', { className: 'flex-1' },
+    React.createElement('label', { className: 'block text-gray-300 text-xs font-bold mb-1', htmlFor: 'font' }, 'Font'),
+    React.createElement('select', { name: 'font', id: 'font', value: value, onChange: onChange, className: 'w-full bg-gray-700 text-white p-2 rounded border border-gray-600 text-sm' },
+      React.createElement('option', { value: "'Dancing Script', cursive" }, 'Dancing Script'),
+      React.createElement('option', { value: "'Lobster', cursive" }, 'Lobster'),
+      React.createElement('option', { value: "'Pacifico', cursive" }, 'Pacifico'),
+      React.createElement('option', { value: "'Caveat', cursive" }, 'Caveat'),
+      React.createElement('option', { value: "'Inter', sans-serif" }, 'Inter')
+    )
+  )
 );
 
 const TextEditorToolbar = ({ element, details, onStyleChange, onColorChange, onClose }) => {
@@ -64,21 +62,19 @@ const TextEditorToolbar = ({ element, details, onStyleChange, onColorChange, onC
   const fontWeight = details[`${prefix}FontWeight`];
   const color = details[`${prefix}Color`];
 
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-2 rounded-t-lg shadow-lg animate-fadeInUp">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-sm font-bold px-2">Editing {element === 'occasion' ? 'Greeting' : 'Message'} Text</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
-      </div>
-      <div className="space-y-2 p-2">
-        <div className="flex space-x-4">
-          <FontSelector value={font} onChange={(e) => onStyleChange(prefix, 'Font', e.target.value)} />
-          <ColorPicker label="Color" value={color} onChange={(c) => onColorChange(prefix, c.hex)} />
-        </div>
-        <Slider label="Size" name="FontSize" min="12" max={element === 'occasion' ? 96 : 48} value={fontSize} onChange={(e) => onStyleChange(prefix, 'FontSize', e.target.value)} />
-        {font.includes('Inter') && <Slider label="Weight" name="FontWeight" min="100" max="900" step="100" value={fontWeight} onChange={(e) => onStyleChange(prefix, 'FontWeight', e.target.value)} />}
-      </div>
-    </div>
+  return React.createElement('div', { className: 'absolute bottom-0 left-0 right-0 bg-gray-800 p-2 rounded-t-lg shadow-lg animate-fadeInUp' },
+    React.createElement('div', { className: 'flex justify-between items-center mb-2' },
+      React.createElement('h3', { className: 'text-sm font-bold px-2' }, `Editing ${element === 'occasion' ? 'Greeting' : 'Message'} Text`),
+      React.createElement('button', { onClick: onClose, className: 'text-gray-400 hover:text-white text-2xl' }, '×')
+    ),
+    React.createElement('div', { className: 'space-y-2 p-2' },
+      React.createElement('div', { className: 'flex space-x-4' },
+        React.createElement(FontSelector, { value: font, onChange: (e) => onStyleChange(prefix, 'Font', e.target.value) }),
+        React.createElement(ColorPicker, { label: 'Color', value: color, onChange: (c) => onColorChange(prefix, c.hex) })
+      ),
+      React.createElement(Slider, { label: 'Size', name: 'FontSize', min: '12', max: element === 'occasion' ? 96 : 48, value: fontSize, onChange: (e) => onStyleChange(prefix, 'FontSize', e.target.value) }),
+      font.includes('Inter') && React.createElement(Slider, { label: 'Weight', name: 'FontWeight', min: '100', max: '900', step: '100', value: fontWeight, onChange: (e) => onStyleChange(prefix, 'FontWeight', e.target.value) })
+    )
   );
 };
 
