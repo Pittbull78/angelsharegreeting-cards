@@ -23,6 +23,29 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 // --- Pricing (Your new V2.0 Prices) ---
 import { PRICES } from './prices';
 
+// Use the local packages installed via npm
+
+
+import HomePage from './components/HomePage';
+import PaymentOptionsPage from './components/PaymentOptionsPage';
+import LoadingSpinner from './components/LoadingSpinner';
+import PaymentPage from './components/PaymentPage';
+import GiftingPage from './components/GiftingPage';
+import CardEditor from './components/CardEditor';
+import FinalCardPage from './components/FinalCardPage';
+import AccountPage from './components/AccountPage';
+
+// --- CONFIGURATION ---
+// IMPORTANT: Replace with your ACTUAL LIVE Publishable Key from Stripe
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY; // Replace!
+// IMPORTANT: Replace with your ACTUAL LIVE Backend URL from Vercel
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+
+
+// --- Pricing (Your new V2.0 Prices) ---
+import { PRICES } from './prices';
+
 // --- Main App Component (The "CEO's Office") ---
 export default function App() {
   // 'page' state controls what the user sees
@@ -55,6 +78,12 @@ export default function App() {
 
     // Color Linking
     areColorsLinked: true,
+
+    // Per-element plaque details
+    plaqueDetails: {
+      occasion: { blur: 0, size: 70 },
+      message: { blur: 0, size: 80 },
+    }
   });
 
   // State for payment history and passes
@@ -251,43 +280,61 @@ export default function App() {
   };
 
   // 5. After finishing card editing
-  const handleFinishEditing = () => {
-    console.log('Card ref:', cardRef.current);
-    if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
-      const newCount = activePass.count - 1;
-      const now = new Date();
-      const newPurchase = {
-        id: now.getTime(),
-        type: activePass.type,
-        date: now.toLocaleDateString(),
-        amount: 0,
-      };
-      const newHistory = [...purchaseHistory, newPurchase];
-      setPurchaseHistory(newHistory);
-      localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
-
-      if (newCount === 0) {
-        setActivePass(null);
-        setIsNewUser(false);
-      } else {
-        setActivePass({ ...activePass, count: newCount });
-      }
-    } else if (purchaseType === 'referral_credit') {
-      const newCredits = referralCredits - 1;
-      setReferralCredits(newCredits);
-      localStorage.setItem('angelshareReferralCredits', newCredits);
-      const now = new Date();
-      const newPurchase = {
-        id: now.getTime(),
-        type: 'Referral Credit Used',
-        date: now.toLocaleDateString(),
-        amount: 0,
-      };
-      const newHistory = [...purchaseHistory, newPurchase];
-      setPurchaseHistory(newHistory);
-      localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+  const handleFinishEditing = async () => {
+    setPage('loading'); // Show a spinner while generating the image
+    if (!cardRef.current) {
+      setError("An error occurred while creating the card. Please try again.");
+      setPage('editor');
+      return;
     }
-    setPage('final');
+
+    try {
+      const dataUrl = await htmlToImage.toPng(cardRef.current, { cacheBust: true });
+      setFinalCardUrl(dataUrl);
+
+      // --- Update purchase history (existing logic) ---
+      if (purchaseType === 'free_card' && activePass && activePass.count > 0) {
+        const newCount = activePass.count - 1;
+        const now = new Date();
+        const newPurchase = {
+          id: now.getTime(),
+          type: activePass.type,
+          date: now.toLocaleDateString(),
+          amount: 0,
+        };
+        const newHistory = [...purchaseHistory, newPurchase];
+        setPurchaseHistory(newHistory);
+        localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+
+        if (newCount === 0) {
+          setActivePass(null);
+          setIsNewUser(false);
+        } else {
+          setActivePass({ ...activePass, count: newCount });
+        }
+      } else if (purchaseType === 'referral_credit') {
+        const newCredits = referralCredits - 1;
+        setReferralCredits(newCredits);
+        localStorage.setItem('angelshareReferralCredits', newCredits);
+        const now = new Date();
+        const newPurchase = {
+          id: now.getTime(),
+          type: 'Referral Credit Used',
+          date: now.toLocaleDateString(),
+          amount: 0,
+        };
+        const newHistory = [...purchaseHistory, newPurchase];
+        setPurchaseHistory(newHistory);
+        localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+      }
+      
+      setPage('final'); // Navigate to the final page
+
+    } catch (error) {
+      console.error("Card generation error:", error);
+      setError("Sorry, there was an issue creating your card image. Please try again.");
+      setPage('editor'); // Go back to the editor on failure
+    }
   };
 
   // 6. Reset the app flow
@@ -372,7 +419,15 @@ export default function App() {
       case 'editor': {
         // Determine where 'Back' should go based on the flow
         const editorBackTarget = includesGift ? 'gifting' : (purchaseType === 'pass_active' ? 'home' : 'payment_options');
-        return <CardEditor cardDetails={cardDetails} setCardDetails={setCardDetails} onNext={handleFinishEditing} onBack={() => setPage(editorBackTarget)} cardRef={cardRef} />;
+        return <CardEditor 
+          cardDetails={cardDetails} 
+          setCardDetails={setCardDetails} 
+          onNext={handleFinishEditing} 
+          onBack={() => setPage(editorBackTarget)} 
+          cardRef={cardRef}
+          giftDetails={giftDetails}
+          includesGift={includesGift}
+        />;
       }
       case 'final':
         return <FinalCardPage cardDetails={cardDetails} giftDetails={giftDetails} onStartOver={handleStartOver} userId={userId} />;
@@ -416,7 +471,7 @@ export default function App() {
             The content provided by this greeting card application is for informational and entertainment purposes only. While we strive for accuracy, we cannot guarantee the completeness or reliability of the information presented.
             By using this app, you acknowledge and agree that any reliance on the material is at your own risk. We will not be liable for any losses, injuries, or damages arising from the use of this app or the information contained therein.
             All greeting card designs, messages, and artwork are the intellectual property of their respective owners. Unauthorized use or reproduction is strictly prohibited. Additionally, the app may contain links to external websites; we do not endorse or assume any responsibility for the content or practices of these sites.
-            Please ensure that all messages and content shared through this app comply with applicable laws and regulations. We encourage users to exercise discretion and sensitivity when sending messages or cards to others.
+            Please ensure that all messages and content shared through this app comply with applicable laws and regulations. We can encourage users to exercise discretion and sensitivity when sending messages or cards to others.
             Use of this app constitutes acceptance of these terms. If you do not agree with these terms, please do not use the application.
           </p>
         </footer>

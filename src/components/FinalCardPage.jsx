@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import * as htmlToImage from 'html-to-image';
+import React, { useState, useEffect } from 'react';
 
-export default function FinalCardPage({ cardDetails, giftDetails, onStartOver, userId }) {
+export default function FinalCardPage({ finalCardUrl, onStartOver, userId }) {
   const [copied, setCopied] = useState(false);
   const [referralLink, setReferralLink] = useState('');
-  const cardRef = useRef(null);
 
   useEffect(() => {
     if (userId) {
@@ -14,120 +12,34 @@ export default function FinalCardPage({ cardDetails, giftDetails, onStartOver, u
   }, [userId]);
 
   const handleCopy = () => {
-    const input = document.getElementById('share-link');
-    if (!input) return;
-    input.select();
-    input.setSelectionRange(0, 99999); // For mobile devices
-
-    try {
-      navigator.clipboard.writeText(referralLink).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        // Increment share count
-        const currentCount = parseInt(localStorage.getItem('angelshareShareCount') || '0', 10);
-        localStorage.setItem('angelshareShareCount', currentCount + 1);
-      }, (err) => {
-        console.error('Clipboard write failed, trying execCommand: ', err);
-        fallbackCopyTextToClipboard(referralLink);
-      });
-    } catch (err) {
-      console.error('Clipboard API failed, trying execCommand: ', err);
-      fallbackCopyTextToClipboard(referralLink);
-    }
+    navigator.clipboard.writeText(referralLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      const currentCount = parseInt(localStorage.getItem('angelshareShareCount') || '0', 10);
+      localStorage.setItem('angelshareShareCount', currentCount + 1);
+    }).catch(err => {
+      console.error('Clipboard write failed: ', err);
+      alert('Failed to copy link.');
+    });
   };
-
-  const fallbackCopyTextToClipboard = (text) => {
-    const input = document.getElementById('share-link');
-    if (!input) return;
-    input.select();
-    input.setSelectionRange(0, 99999); // For mobile devices
-    try {
-      const successful = document.execCommand('copy');
-      if (successful) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        // Increment share count
-        const currentCount = parseInt(localStorage.getItem('angelshareShareCount') || '0', 10);
-        localStorage.setItem('angelshareShareCount', currentCount + 1);
-      } else {
-        console.error('execCommand failed');
-        alert('Copy failed. Please copy the link manually.');
-      }
-    } catch (err) {
-      console.error('Fallback copy failed: ', err);
-      alert('Copy failed. Please copy the link manually.');
-    }
-  };
-
-  const handleDownload = () => {
-    if (cardRef.current === null) {
-      return;
-    }
-
-    htmlToImage.toPng(cardRef.current, { cacheBust: true, })
-      .then((dataUrl) => {
-        const link = document.createElement('a');
-        link.download = 'angelshare-card.png';
-        link.href = dataUrl;
-        link.click();
-      })
-      .catch((err) => {
-        console.error(err);
-        alert('Oops, something went wrong! Could not download the card.');
-      });
-  };
-
-  const occasionStyles = { fontFamily: cardDetails.occasionFont, color: cardDetails.occasionColor, fontWeight: cardDetails.occasionFontWeight, fontSize: `${cardDetails.occasionFontSize}px` };
-  const messageStyles = { fontFamily: cardDetails.messageFont, color: cardDetails.messageColor, fontWeight: cardDetails.messageFontWeight, fontSize: `${cardDetails.messageFontSize}px` };
-  const senderStyles = { ...messageStyles, fontSize: `${Math.max(12, cardDetails.messageFontSize * 0.8)}px` };
-
-  const generateQrCodeUrl = (details) => {
-    if (!details.username || !details.amount) return null;
-
-    let link;
-    if (details.platform === 'cashapp') {
-      // Remove leading '$' if present
-      const cleanUsername = details.username.replace(/^\$/, '');
-      link = `https://cash.app/$${cleanUsername}/${details.amount}`;
-    } else { // venmo
-      // Remove leading '@' if present
-      const cleanUsername = details.username.replace(/^@/, '');
-      link = `https://venmo.com/paycharge?txn=pay&recipients=${cleanUsername}&amount=${details.amount}&note=For%20${details.recipient.replace(' ', '%20')}`;
-    }
-
-    // Use a public QR code generator API
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}`;
-  };
-
-  const qrCodeUrl = generateQrCodeUrl(giftDetails);
 
   return (
     <div className="text-center space-y-4 animate-fadeIn">
       <h2 className="text-2xl font-bold text-green-400 mb-4">Your Card is Ready!</h2>
 
-      <p className="text-gray-300">Download the card image and send it to your recipient. They will scan the QR code to claim their gift.</p>
+      <p className="text-gray-300">Download the card image below to share it with your recipient.</p>
 
-      {/* This is the final card that will be downloaded */}
-      <div ref={cardRef} className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
-        {cardDetails.photo && <img src={cardDetails.photo} alt="Preview" className="absolute top-0 left-0 w-full h-full object-cover" />}
-        <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4">
-          <div className="cursor-pointer">
-            <p className="font-bold drop-shadow-md" style={occasionStyles}>{cardDetails.greetingText}</p>
-          </div>
-          <div className="cursor-pointer mt-4">
-            <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
-            <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
-          </div>
-          {qrCodeUrl && (
-            <div className="mt-4">
-              <img src={qrCodeUrl} alt="Gift QR Code" className="w-24 h-24 mx-auto rounded-lg border-2 border-white shadow-lg bg-white" />
-            </div>
-          )}
+      {/* Display the final, generated card image */}
+      {finalCardUrl ? (
+        <img src={finalCardUrl} alt="Generated Greeting Card" className="w-full aspect-[4/3] rounded-lg shadow-lg" />
+      ) : (
+        <div className="w-full aspect-[4/3] rounded-lg bg-gray-700 flex items-center justify-center">
+          <p className="text-gray-400">Generating card...</p>
         </div>
-      </div>
+      )}
 
       <div className="bg-gray-700 p-4 rounded-lg mt-4">
-        <label htmlFor="share-link" className="block text-sm font-bold text-gray-300 mb-2">Copy your referral link:</label>
+        <label htmlFor="share-link" className="block text-sm font-bold text-gray-300 mb-2">Copy your referral link to earn rewards:</label>
         <div className="flex space-x-2">
            <textarea
             id="share-link"
@@ -145,11 +57,13 @@ export default function FinalCardPage({ cardDetails, giftDetails, onStartOver, u
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <button
-          onClick={handleDownload}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all duration-200">
+        <a
+          href={finalCardUrl}
+          download="angelshare-card.png"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all duration-200 inline-block"
+        >
           Download Card
-        </button>
+        </a>
         <button
           onClick={onStartOver}
           className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all duration-200">

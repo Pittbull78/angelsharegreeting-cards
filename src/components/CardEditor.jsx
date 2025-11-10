@@ -3,11 +3,17 @@ import { SketchPicker } from 'react-color';
 
 // --- DATA ---
 const holidayTemplates = {
-  valentines: { greetingText: 'Happy Valentine\'s Day', message: 'Sending you all my love!', occasionColor: '#d83b8c', background: 'linear-gradient(to top, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)' },
-  christmas: { greetingText: 'Merry Christmas', message: 'Wishing you a joyful holiday season!', occasionColor: '#c41e3a', background: 'linear-gradient(to top, #0ba360 0%, #3cba92 100%)' },
+  birthday: { greetingText: 'Happy Birthday', message: 'Wishing you the best on your special day!', occasionColor: '#4a2c2a', background: 'linear-gradient(120deg, #f6d365 0%, #fda085 100%)' },
+  anniversary: { greetingText: 'Happy Anniversary', message: 'Cheers to another year together!', occasionColor: '#FFFFFF', background: 'linear-gradient(to right, #ff8177 0%, #ff867a 0%, #ff8c7f 21%, #f99185 52%, #cf556c 78%, #b12a5b 100%)' },
+  'thank you': { greetingText: 'Thank You', message: 'I really appreciate your kindness!', occasionColor: '#001f3f', background: 'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)' },
+  congratulations: { greetingText: 'Congratulations', message: 'You did it! So proud of you.', occasionColor: '#441288', background: 'linear-gradient(to right, #f83600 0%, #f9d423 100%)' },
+  'get-well': { greetingText: 'Get Well Soon', message: 'Sending you healing thoughts.', occasionColor: '#FFFFFF', background: 'linear-gradient(to top, #48c6ef 0%, #6f86d6 100%)' },
+  sympathy: { greetingText: 'With Sympathy', message: 'Thinking of you during this difficult time.', occasionColor: '#333333', background: 'linear-gradient(to right, #e2e2e2 0%, #c9d6ff 100%)' },
+  valentines: { greetingText: 'Happy Valentine\'s Day', message: 'Sending you all my love!', occasionColor: '#c2185b', background: 'linear-gradient(to top, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)' },
+  christmas: { greetingText: 'Merry Christmas', message: 'Wishing you a joyful holiday season!', occasionColor: '#FFFFFF', background: 'linear-gradient(to top, #0ba360 0%, #3cba92 100%)' },
   'new-year': { greetingText: 'Happy New Year', message: 'Cheers to a great year ahead!', occasionColor: '#f1c40f', background: 'linear-gradient(to right, #434343 0%, black 100%)' },
-  'mothers-day': { greetingText: 'Happy Mother\'s Day', message: 'Thank you for everything!', occasionColor: '#ea80fc', background: 'linear-gradient(120deg, #f6d365 0%, #fda085 100%)' },
-  'fathers-day': { greetingText: 'Happy Father\'s Day', message: 'You\'re the best, Dad!', occasionColor: '#3498db', background: 'linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%)' },
+  'mothers-day': { greetingText: 'Happy Mother\'s Day', message: 'Thank you for everything!', occasionColor: '#4a2c2a', background: 'linear-gradient(120deg, #f6d365 0%, #fda085 100%)' },
+  'fathers-day': { greetingText: 'Happy Father\'s Day', message: 'You\'re the best, Dad!', occasionColor: '#FFFFFF', background: 'linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%)' },
 };
 
 const backgrounds = [
@@ -78,9 +84,17 @@ const TextEditorToolbar = ({ element, details, onStyleChange, onColorChange, onC
   );
 };
 
+import { ContextualMenu, ControlPopover } from './ContextualEditor';
+
 // --- MAIN COMPONENT ---
-export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack, cardRef }) {
+export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack, cardRef, giftDetails, includesGift }) {
   const [selectedElement, setSelectedElement] = useState(null);
+  const [selectedTool, setSelectedTool] = useState(null);
+  
+  // State for manual dragging
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [relativePosition, setRelativePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const template = holidayTemplates[cardDetails.occasion];
@@ -96,6 +110,50 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
     }
   }, [cardDetails.occasion, setCardDetails]);
 
+  // Drag Handlers
+  const handleDragStart = (e) => {
+    if (e.target.closest('button, input, select')) return; // Don't drag on interactive elements
+    setIsDragging(true);
+    setRelativePosition({
+      x: e.pageX - position.x,
+      y: e.pageY - position.y
+    });
+    e.preventDefault();
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.pageX - relativePosition.x,
+      y: e.pageY - relativePosition.y
+    });
+    e.preventDefault();
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+    } else {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [isDragging, handleDragMove, handleDragEnd]);
+
+
+  const handleSelectElement = (element) => {
+    setSelectedElement(element);
+    setSelectedTool(null); // Reset tool selection when element changes
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCardDetails(prev => ({ ...prev, [name]: value }));
@@ -109,6 +167,19 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
     setCardDetails(prev => ({ ...prev, [`${prefix}Color`]: color }));
   };
 
+  const handlePlaqueChange = (element, property, value) => {
+    setCardDetails(prev => ({
+      ...prev,
+      plaqueDetails: {
+        ...prev.plaqueDetails,
+        [element]: {
+          ...prev.plaqueDetails[element],
+          [property]: value
+        }
+      }
+    }));
+  };
+
   const handlePhoto = (e) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
@@ -117,26 +188,88 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
     }
   };
 
+  const generateQrCodeUrl = (details) => {
+    if (!details.username || !details.amount) return null;
+
+    let link;
+    if (details.platform === 'cashapp') {
+      const cleanUsername = details.username.replace(/^\$/, '');
+      link = `https://cash.app/$${cleanUsername}/${details.amount}`;
+    } else { // venmo
+      const cleanUsername = details.username.replace(/^@/, '');
+      link = `https://venmo.com/paycharge?txn=pay&recipients=${cleanUsername}&amount=${details.amount}&note=For%20${details.recipient.replace(' ', '%20')}`;
+    }
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}`;
+  };
+
+  const qrCodeUrl = includesGift ? generateQrCodeUrl(giftDetails) : null;
+
   const occasionStyles = { fontFamily: cardDetails.occasionFont, color: cardDetails.occasionColor, fontWeight: cardDetails.occasionFontWeight, fontSize: `${cardDetails.occasionFontSize}px` };
   const messageStyles = { fontFamily: cardDetails.messageFont, color: cardDetails.messageColor, fontWeight: cardDetails.messageFontWeight, fontSize: `${cardDetails.messageFontSize}px` };
   const senderStyles = { ...messageStyles, fontSize: `${Math.max(12, cardDetails.messageFontSize * 0.8)}px` };
+
+  const plaqueStyle = (type) => ({
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: `${cardDetails.plaqueDetails[type].size}%`,
+    height: '100%',
+    transform: 'translate(-50%, -50%)',
+    backdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
+    WebkitBackdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
+    maskImage: 'radial-gradient(ellipse 50% 60% at 50% 50%, black 40%, transparent 100%)',
+    WebkitMaskImage: 'radial-gradient(ellipse 50% 60% at 50% 50%, black 40%, transparent 100%)',
+  });
 
   return (
     <div className="space-y-4 animate-fadeIn">
       <div ref={cardRef} className="w-full aspect-[4/3] rounded-lg flex items-center justify-center text-center p-4 shadow-inner relative overflow-hidden" style={{ background: cardDetails.background }}>
         {cardDetails.photo && <img src={cardDetails.photo} alt="Preview" className="absolute top-0 left-0 w-full h-full object-cover" />}
-        <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4">
-          <div onClick={() => setSelectedElement('occasion')} className="cursor-pointer">
-            <p className="font-bold drop-shadow-md" style={occasionStyles}>{cardDetails.greetingText}</p>
+        
+        <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4 space-y-4">
+          {/* Greeting Area */}
+          <div onClick={() => handleSelectElement('occasion')} className="cursor-pointer relative w-full py-2">
+            <div style={plaqueStyle('occasion')} />
+            <p className="font-bold drop-shadow-md relative" style={occasionStyles}>{cardDetails.greetingText}</p>
           </div>
-          <div onClick={() => setSelectedElement('message')} className="cursor-pointer mt-4">
-            <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
-            <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
-          </div>
-        </div>
-      </div>
 
-      {selectedElement && <TextEditorToolbar element={selectedElement} details={cardDetails} onStyleChange={handleStyleChange} onColorChange={handleColorChange} onClose={() => setSelectedElement(null)} />}
+          {/* Message Area */}
+          <div onClick={() => handleSelectElement('message')} className="cursor-pointer relative w-full py-4">
+            <div style={plaqueStyle('message')} />
+            <div className="relative">
+              <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
+              <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
+            </div>
+          </div>
+
+          {qrCodeUrl && (
+            <div className="absolute bottom-4 right-4">
+              <img src={qrCodeUrl} alt="Gift QR Code" className="w-16 h-16 rounded-lg border-2 border-white shadow-lg bg-white" />
+            </div>
+          )}
+        </div>
+
+        {selectedElement && (
+          <div 
+            className="absolute top-4 right-4 z-20"
+            style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+            onMouseDown={handleDragStart}
+          >
+            <div className="cursor-move">
+              <ContextualMenu onSelectTool={setSelectedTool} />
+            </div>
+            <ControlPopover 
+              tool={selectedTool} 
+              details={cardDetails}
+              element={selectedElement}
+              onStyleChange={handleStyleChange}
+              onPlaqueChange={handlePlaqueChange}
+              onColorChange={handleColorChange}
+              onClose={() => setSelectedTool(null)} 
+            />
+          </div>
+        )}
+      </div>
 
       <div className="space-y-4">
         <div>
