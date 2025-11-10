@@ -23,29 +23,6 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 // --- Pricing (Your new V2.0 Prices) ---
 import { PRICES } from './prices';
 
-// Use the local packages installed via npm
-
-
-import HomePage from './components/HomePage';
-import PaymentOptionsPage from './components/PaymentOptionsPage';
-import LoadingSpinner from './components/LoadingSpinner';
-import PaymentPage from './components/PaymentPage';
-import GiftingPage from './components/GiftingPage';
-import CardEditor from './components/CardEditor';
-import FinalCardPage from './components/FinalCardPage';
-import AccountPage from './components/AccountPage';
-
-// --- CONFIGURATION ---
-// IMPORTANT: Replace with your ACTUAL LIVE Publishable Key from Stripe
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY; // Replace!
-// IMPORTANT: Replace with your ACTUAL LIVE Backend URL from Vercel
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
-
-
-// --- Pricing (Your new V2.0 Prices) ---
-import { PRICES } from './prices';
-
 // --- Main App Component (The "CEO's Office") ---
 export default function App() {
   // 'page' state controls what the user sees
@@ -65,13 +42,13 @@ export default function App() {
     background: 'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)',
 
     // Greeting (Occasion) Styles
-    occasionFont: '\'Dancing Script\', cursive',
+    occasionFont: "'Dancing Script', cursive",
     occasionFontWeight: 700,
     occasionFontSize: 48,
     occasionColor: '#FFFFFF',
 
     // Message Styles
-    messageFont: '\'Inter\', sans-serif',
+    messageFont: "'Inter', sans-serif",
     messageFontWeight: 400,
     messageFontSize: 20,
     messageColor: '#FFFFFF',
@@ -349,11 +326,11 @@ export default function App() {
       sender: '',
       photo: null,
       background: 'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)',
-      occasionFont: '\'Dancing Script\', cursive',
+      occasionFont: "'Dancing Script', cursive",
       occasionFontWeight: 700,
       occasionFontSize: 48,
       occasionColor: '#FFFFFF',
-      messageFont: '\'Inter\', sans-serif',
+      messageFont: "'Inter', sans-serif",
       messageFontWeight: 400,
       messageFontSize: 20,
       messageColor: '#FFFFFF',
@@ -430,7 +407,7 @@ export default function App() {
         />;
       }
       case 'final':
-        return <FinalCardPage cardDetails={cardDetails} giftDetails={giftDetails} onStartOver={handleStartOver} userId={userId} />;
+        return <FinalCardPage finalCardUrl={finalCardUrl} onStartOver={handleStartOver} userId={userId} />;
       case 'account':
         return <AccountPage history={purchaseHistory} pass={activePass} onBack={() => setPage('home')} shareCount={shareCount} referralCredits={referralCredits} checkReferralRewards={handleCheckReferralRewards} />;
       default:
@@ -479,4 +456,3 @@ export default function App() {
     </div>
   );
 }
-
