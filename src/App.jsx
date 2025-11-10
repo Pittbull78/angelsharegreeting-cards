@@ -147,6 +147,17 @@ export default function App() {
   const handleStartFlow = (type) => { // 'gift' or 'card'
     setIncludesGift(type === 'gift');
 
+    // Check for Free Mode
+    if (import.meta.env.VITE_FREE_MODE === 'true') {
+      setPurchaseType('free_mode');
+      if (type === 'gift') {
+        setPage('gifting');
+      } else {
+        setPage('editor');
+      }
+      return;
+    }
+
     if (activePass) {
       if (activePass.id && activePass.id.startsWith('free_card')) {
         setPurchaseType('free_card');
