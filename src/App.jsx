@@ -277,7 +277,10 @@ export default function App() {
     }
 
     try {
-      const dataUrl = await htmlToImage.toPng(cardRef.current, { cacheBust: true });
+      const dataUrl = await htmlToImage.toPng(cardRef.current, { 
+        cacheBust: true,
+        embedFonts: true
+      });
       setFinalCardUrl(dataUrl);
 
       // --- Update purchase history (existing logic) ---

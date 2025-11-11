@@ -243,7 +243,7 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
           </div>
 
           {qrCodeUrl && (
-            <div className="absolute bottom-4 right-4">
+            <div className="absolute bottom-4 right-4 z-20">
               <img src={qrCodeUrl} alt="Gift QR Code" className="w-16 h-16 rounded-lg border-2 border-white shadow-lg bg-white" />
             </div>
           )}
