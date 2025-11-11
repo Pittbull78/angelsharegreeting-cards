@@ -277,7 +277,20 @@ export default function App() {
     }
 
     try {
-      const dataUrl = await domtoimage.toPng(cardRef.current);
+      const node = cardRef.current;
+      const scale = 2; // Use a scale factor for higher resolution
+
+      const options = {
+        width: node.offsetWidth * scale,
+        height: node.offsetHeight * scale,
+        style: {
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left'
+        },
+        cacheBust: true
+      };
+
+      const dataUrl = await domtoimage.toPng(node, options);
       setFinalCardUrl(dataUrl);
 
       // --- Update purchase history (existing logic) ---
