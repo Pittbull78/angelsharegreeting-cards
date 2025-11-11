@@ -243,13 +243,13 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
         <div className="z-10 relative w-full h-full flex flex-col justify-center items-center p-4 space-y-4">
           {/* Greeting Area */}
           <div onClick={() => handleSelectElement('occasion')} className="cursor-pointer relative w-full py-2">
-            <div style={plaqueStyle('occasion')} />
+            
             <p className="font-bold drop-shadow-md relative" style={occasionStyles}>{cardDetails.greetingText}</p>
           </div>
 
           {/* Message Area */}
           <div onClick={() => handleSelectElement('message')} className="cursor-pointer relative w-full py-4">
-            <div style={plaqueStyle('message')} />
+            
             <div className="relative">
               <p className="drop-shadow-md" style={messageStyles}>{cardDetails.message}</p>
               <p className="italic drop-shadow-md mt-6" style={senderStyles}>from {cardDetails.sender}</p>
