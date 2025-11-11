@@ -320,6 +320,18 @@ export default function App() {
         const newHistory = [...purchaseHistory, newPurchase];
         setPurchaseHistory(newHistory);
         localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
+      } else if (purchaseType === 'free_mode') {
+        // This is a free card from "Free Mode", log it for tracking
+        const now = new Date();
+        const newPurchase = {
+          id: now.getTime(),
+          type: 'Free Card (Admin)',
+          date: now.toLocaleDateString(),
+          amount: 0,
+        };
+        const newHistory = [...purchaseHistory, newPurchase];
+        setPurchaseHistory(newHistory);
+        localStorage.setItem('angelshareHistory', JSON.stringify(newHistory));
       }
       
       setPage('final'); // Navigate to the final page
