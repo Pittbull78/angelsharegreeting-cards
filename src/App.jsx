@@ -1,3 +1,4 @@
+ // Forcing a new commit
 import React, { useState, useEffect, useRef } from 'react';
 import domtoimage from 'dom-to-image-more';
 // Use the local packages installed via npm
