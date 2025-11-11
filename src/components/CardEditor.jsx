@@ -229,8 +229,8 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
     width: `${cardDetails.plaqueDetails[type].size}%`,
     height: '100%',
     transform: 'translate(-50%, -50%)',
-    // backdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
-    // WebkitBackdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
+    backdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
+    WebkitBackdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
     maskImage: 'radial-gradient(ellipse 50% 60% at 50% 50%, black 40%, transparent 100%)',
     WebkitMaskImage: 'radial-gradient(ellipse 50% 60% at 50% 50%, black 40%, transparent 100%)',
   });

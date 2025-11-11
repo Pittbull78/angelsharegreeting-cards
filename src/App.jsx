@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as htmlToImage from 'html-to-image';
+import domtoimage from 'dom-to-image-more';
 // Use the local packages installed via npm
 
 
@@ -116,11 +116,11 @@ export default function App() {
         if (referrerId) {
           // New user with a referral
           setIsNewUser(true);
-          setActivePass({ id: 'free_card_referred', type: 'Free Card (Referred)', count: 2 });
+          setActivePass({ id: 'free_card_referred', type: 'Free Card (Referred)', count: 10 });
         } else {
           // New user, no referral
           setIsNewUser(true);
-          setActivePass({ id: 'free_card', type: 'Free Card', count: 1 });
+          setActivePass({ id: 'free_card', type: 'Free Card', count: 10 });
         }
       } else {
         const now = new Date().getTime();
@@ -277,13 +277,7 @@ export default function App() {
     }
 
     try {
-      // Add a short delay to ensure all elements are rendered
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const dataUrl = await htmlToImage.toPng(cardRef.current, { 
-        cacheBust: true,
-        embedFonts: true
-      });
+      const dataUrl = await domtoimage.toPng(cardRef.current);
       setFinalCardUrl(dataUrl);
 
       // --- Update purchase history (existing logic) ---
