@@ -1,9 +1,9 @@
- // Forcing a new commit
+// Forcing a new commit
 import React, { useState, useEffect, useRef } from 'react';
 import domtoimage from 'dom-to-image-more';
-// Use the local packages installed via npm
 
-
+import HomePage from './components/HomePage';
+// ... and so on
 import HomePage from './components/HomePage';
 import PaymentOptionsPage from './components/PaymentOptionsPage';
 import LoadingSpinner from './components/LoadingSpinner';
