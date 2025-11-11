@@ -277,6 +277,9 @@ export default function App() {
     }
 
     try {
+      // Add a short delay to ensure all elements are rendered
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const dataUrl = await htmlToImage.toPng(cardRef.current, { 
         cacheBust: true,
         embedFonts: true
