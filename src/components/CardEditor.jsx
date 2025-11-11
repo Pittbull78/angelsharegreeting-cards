@@ -112,20 +112,28 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
 
   // Drag Handlers
   const handleDragStart = (e) => {
-    if (e.target.closest('button, input, select')) return; // Don't drag on interactive elements
+    if (e.target.closest('button, input, select')) return;
+    
+    const pageX = e.pageX || e.touches[0].pageX;
+    const pageY = e.pageY || e.touches[0].pageY;
+
     setIsDragging(true);
     setRelativePosition({
-      x: e.pageX - position.x,
-      y: e.pageY - position.y
+      x: pageX - position.x,
+      y: pageY - position.y
     });
     e.preventDefault();
   };
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
+
+    const pageX = e.pageX || e.touches[0].pageX;
+    const pageY = e.pageY || e.touches[0].pageY;
+
     setPosition({
-      x: e.pageX - relativePosition.x,
-      y: e.pageY - relativePosition.y
+      x: pageX - relativePosition.x,
+      y: pageY - relativePosition.y
     });
     e.preventDefault();
   };
@@ -137,14 +145,20 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('touchmove', handleDragMove);
       window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchend', handleDragEnd);
     } else {
       window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('touchmove', handleDragMove);
       window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchend', handleDragEnd);
     }
     return () => {
       window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('touchmove', handleDragMove);
       window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchend', handleDragEnd);
     };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
@@ -215,8 +229,8 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
     width: `${cardDetails.plaqueDetails[type].size}%`,
     height: '100%',
     transform: 'translate(-50%, -50%)',
-    backdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
-    WebkitBackdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
+    // backdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
+    // WebkitBackdropFilter: `blur(${cardDetails.plaqueDetails[type].blur}px)`,
     maskImage: 'radial-gradient(ellipse 50% 60% at 50% 50%, black 40%, transparent 100%)',
     WebkitMaskImage: 'radial-gradient(ellipse 50% 60% at 50% 50%, black 40%, transparent 100%)',
   });
@@ -254,6 +268,7 @@ export default function CardEditor({ cardDetails, setCardDetails, onNext, onBack
             className="absolute top-4 right-4 z-20"
             style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
             onMouseDown={handleDragStart}
+            onTouchStart={handleDragStart}
           >
             <div className="cursor-move">
               <ContextualMenu onSelectTool={setSelectedTool} />
