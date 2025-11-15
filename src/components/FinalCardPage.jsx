@@ -26,10 +26,8 @@ export default function FinalCardPage({ finalCardUrl, onStartOver, userId }) {
   return (
     <div className="text-center space-y-4 animate-fadeIn">
       <h2 className="text-2xl font-bold text-green-400 mb-4">Your Card is Ready!</h2>
-
       <p className="text-gray-300">Download the card image below to share it with your recipient.</p>
 
-      {/* Display the final, generated card image */}
       {finalCardUrl ? (
         <img src={finalCardUrl} alt="Generated Greeting Card" className="w-full aspect-[4/3] rounded-lg shadow-lg" />
       ) : (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SketchPicker } from 'react-color';
 
-// --- Reusable Helper Components from CardEditor ---
+// --- Reusable Helper Components ---
 const ColorPicker = ({ label, value, onChange }) => {
   const [display, setDisplay] = useState(false);
   const styles = {
@@ -37,13 +37,11 @@ const FontSelector = ({ value, onChange }) => (
   )
 );
 
-
 // --- Main Menu Component ---
 export const ContextualMenu = ({ onSelectTool }) => {
   const tools = ['Font', 'Color', 'Size', 'Weight', 'Plaque Blur', 'Plaque Size'];
-
   return (
-    <div className="absolute top-0 right-0 bg-gray-800 rounded-lg shadow-lg p-2 z-20 w-48">
+    <div className="bg-gray-800 rounded-lg shadow-lg p-2 z-20 w-48">
       <p className="text-xs text-gray-400 mb-2 font-bold text-center">EDITING TOOLS</p>
       <div className="grid grid-cols-2 gap-1">
         {tools.map(tool => (
@@ -64,7 +62,7 @@ export const ContextualMenu = ({ onSelectTool }) => {
 export const ControlPopover = ({ tool, details, element, onStyleChange, onPlaqueChange, onColorChange, onClose }) => {
   if (!tool) return null;
 
-  const prefix = element; // 'occasion' or 'message'
+  const prefix = element;
 
   const renderControl = () => {
     switch (tool) {
